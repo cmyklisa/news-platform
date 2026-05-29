@@ -1,20 +1,25 @@
-// 主頁：12 類別全螢幕分頁 + 砌磚牆寬扁磁磚（錯位交錯）+ 左側類別導覽
+// 主頁：12 類別、磁磚牆、點擊放射展開、全站搜尋、點擊音效、RWD
 const pagesEl = document.getElementById('pages');
 const sideNavEl = document.getElementById('sideNav');
 const statusEl = document.getElementById('status');
 const favCountEl = document.getElementById('favCount');
 const refreshBtn = document.getElementById('refreshBtn');
+const soundToggle = document.getElementById('soundToggle');
+const topSearchInput = document.getElementById('topSearch');
+const topSearchResults = document.getElementById('topSearchResults');
 
 const BIAS_WORDS = (window.BIAS_WORDS || []).slice().sort((a, b) => b.length - a.length);
 const HEART_PATH = 'M12 21s-7-4.6-7-10.3A4.7 4.7 0 0 1 9.7 6c1.6 0 3 .8 3.8 2 .8-1.2 2.2-2 3.8-2A4.7 4.7 0 0 1 22 10.7C22 16.4 12 21 12 21z';
 
-// 字級隨機池（決定每塊磚的文字大小）
 const SIZE_POOL = [
   ...Array(6).fill('size-l'),
   ...Array(9).fill('size-m'),
   ...Array(7).fill('size-s'),
 ];
-const COPIES = 6; // 每類別重複幾份做出「滑很久」的感覺
+
+const isMobile = () => window.innerWidth <= 768;
+const rowCount = () => (isMobile() ? 1 : 6);
+const copyCount = () => (isMobile() ? 1 : 6);
 
 function escapeHTML(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -35,9 +40,44 @@ function formatTime(ms) {
 }
 function updateFavCount() { favCountEl.textContent = window.Favorites.count(); }
 
-// 桌機 6 排、手機 4 排
-function rowCount() { return window.innerWidth <= 760 ? 4 : 6; }
+// ===== Click sound (Web Audio API) =====
+const SOUND_KEY = 'tw-news-sound-on';
+let soundOn = localStorage.getItem(SOUND_KEY) !== '0';
+let audioCtx = null;
+function applySoundUI() {
+  soundToggle.textContent = soundOn ? '🔊' : '🔇';
+  soundToggle.classList.toggle('muted', !soundOn);
+  soundToggle.title = soundOn ? '點擊音效：開' : '點擊音效：關';
+}
+soundToggle.addEventListener('click', () => {
+  soundOn = !soundOn;
+  localStorage.setItem(SOUND_KEY, soundOn ? '1' : '0');
+  applySoundUI();
+  if (soundOn) playClick(); // 開啟時試播一下
+});
+applySoundUI();
 
+function playClick() {
+  if (!soundOn) return;
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(2200, t);
+    osc.frequency.exponentialRampToValueAtTime(700, t + 0.05);
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.07, t + 0.006);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + 0.1);
+  } catch (e) { /* ignore */ }
+}
+
+// ===== brick =====
 function buildBrick(item) {
   const a = document.createElement('a');
   a.className = `brick ${randomSize()}`;
@@ -71,7 +111,7 @@ function buildBrick(item) {
     updateFavCount();
   });
 
-  // 手機長按顯示愛心
+  // touch long-press shows fav
   let pressTimer = null;
   let startX = 0, startY = 0;
   a.addEventListener('touchstart', e => {
@@ -95,28 +135,20 @@ function buildBrick(item) {
     }
   });
 
-  // 點擊邏輯：
-  //  - cmd/ctrl/shift/middle → 直開原文
-  //  - 該事件有多來源 → 放射狀展開兄弟標題
-  //  - 單來源 → 直接開抽屜
   a.addEventListener('click', e => {
     if (a.dataset.suppressClick === '1') {
-      e.preventDefault();
-      a.dataset.suppressClick = '0';
-      return;
+      e.preventDefault(); a.dataset.suppressClick = '0'; return;
     }
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
     e.preventDefault();
-    if (item.cluster_size && item.cluster_size > 1) {
-      openRadial(item);
-    } else {
-      window.openDrawer(item.id, item.url);
-    }
+    playClick();
+    if (item.cluster_size && item.cluster_size > 1) openRadial(item);
+    else window.openDrawer(item.id, item.url);
   });
   return a;
 }
 
-// ===== Radial expand (cluster siblings around original) =====
+// ===== Radial =====
 let radialEl = null;
 function ensureRadial() {
   if (radialEl) return radialEl;
@@ -137,20 +169,16 @@ function ensureRadial() {
   });
   return radialEl;
 }
-function closeRadial() {
-  if (radialEl) radialEl.hidden = true;
-}
+function closeRadial() { if (radialEl) radialEl.hidden = true; }
 async function openRadial(item) {
   const el = ensureRadial();
   const cluster = el.querySelector('.radial-cluster');
   cluster.innerHTML = `<div class="radial-center radial-loading">載入中…</div>`;
   el.hidden = false;
-
   try {
     const r = await fetch(`/api/headline/${item.id}`);
     const { headline, siblings } = await r.json();
     if (!siblings || siblings.length === 0) {
-      // 後端說沒有兄弟（資料變了）→ 直接開抽屜
       closeRadial();
       window.openDrawer(item.id, item.url);
       return;
@@ -171,6 +199,7 @@ async function openRadial(item) {
     cluster.querySelectorAll('.radial-center, .radial-sibling').forEach(node => {
       node.addEventListener('click', e => {
         e.preventDefault(); e.stopPropagation();
+        playClick();
         const id = parseInt(node.dataset.id, 10);
         const url = node.dataset.url;
         closeRadial();
@@ -183,19 +212,22 @@ async function openRadial(item) {
   }
 }
 
-function reshuffleSizes(rail) {
-  rail.querySelectorAll('.brick').forEach(b => {
+// ===== reshuffle font sizes (re-enter page on desktop) =====
+function reshuffleSizes(container) {
+  container.querySelectorAll('.brick').forEach(b => {
     b.classList.remove('size-l', 'size-m', 'size-s');
     b.classList.add(randomSize());
   });
 }
 
+// ===== build page =====
 function buildPage(cat) {
   const page = document.createElement('section');
   page.className = 'page';
   page.dataset.code = cat.code;
 
   page.innerHTML = `
+    <div class="page-header">${escapeHTML(cat.name)}<span class="ph-count">今日 ${cat.total_today} 則</span></div>
     <div class="watermark">${escapeHTML(cat.name)}</div>
     <div class="watermark-meta">今日 ${cat.total_today} 則 · 顯示 ${cat.items.length}</div>
     <div class="brick-rail" data-code="${cat.code}"></div>
@@ -205,7 +237,7 @@ function buildPage(cat) {
   const rail = page.querySelector('.brick-rail');
   const items = cat.items || [];
   if (items.length === 0) {
-    rail.innerHTML = `<div style="margin:auto;color:var(--muted);font-family:var(--sans)">此類別尚無資料</div>`;
+    rail.innerHTML = `<div style="margin:auto;color:var(--muted);font-family:var(--sans);padding:40px">此類別尚無資料</div>`;
     rail.style.display = 'flex';
     rail.style.alignItems = 'center';
     rail.style.justifyContent = 'center';
@@ -213,6 +245,7 @@ function buildPage(cat) {
   }
 
   const rows = rowCount();
+  const copies = copyCount();
   const rowEls = [];
   for (let r = 0; r < rows; r++) {
     const row = document.createElement('div');
@@ -220,9 +253,8 @@ function buildPage(cat) {
     rail.appendChild(row);
     rowEls.push(row);
   }
-  // 重複 COPIES 份；round-robin 分配到各 row
   let idx = 0;
-  for (let copy = 0; copy < COPIES; copy++) {
+  for (let copy = 0; copy < copies; copy++) {
     for (const it of items) {
       rowEls[idx % rows].appendChild(buildBrick(it));
       idx++;
@@ -233,7 +265,7 @@ function buildPage(cat) {
 
 function buildSideNav(items) {
   sideNavEl.innerHTML = `<ul>${items.map((c, i) => `
-    <li data-i="${i}" data-count="${c.total_today ?? c.total ?? ''}">${escapeHTML(c.name)}</li>
+    <li data-i="${i}" data-count="${c.total_today ?? ''}">${escapeHTML(c.name)}</li>
   `).join('')}</ul>`;
   sideNavEl.querySelectorAll('li').forEach(li => {
     li.addEventListener('click', () => {
@@ -241,46 +273,6 @@ function buildSideNav(items) {
       pagesEl.scrollTo({ top: i * window.innerHeight, behavior: 'smooth' });
     });
   });
-}
-
-function buildCloudPage(cloudItems) {
-  const page = document.createElement('section');
-  page.className = 'page cloud-page';
-  page.dataset.code = 'keywords';
-  const counts = cloudItems.map(k => k.count);
-  const maxC = counts.length ? Math.max(...counts) : 1;
-  const minC = counts.length ? Math.min(...counts) : 1;
-
-  const words = cloudItems.map(k => {
-    const ratio = maxC === minC ? 1 : (k.count - minC) / (maxC - minC);
-    const size = Math.round(16 + ratio * 56);  // 16~72 px
-    const opacity = (0.55 + ratio * 0.45).toFixed(2);
-    return `<span class="cloud-word" data-word="${escapeHTML(k.word)}"
-                style="font-size:${size}px;opacity:${opacity}">${escapeHTML(k.word)}<em class="cloud-count">${k.count}</em></span>`;
-  }).join(' ');
-
-  page.innerHTML = `
-    <div class="watermark">熱門</div>
-    <div class="watermark-meta">今日熱門關鍵字 · 點擊查看相關標題</div>
-    <div class="cloud-wrap">
-      <div class="cloud">${words || '<span style="color:var(--muted);font-family:var(--sans);font-size:14px">資料尚少，再多幾次抓取後產生</span>'}</div>
-    </div>
-    <div class="scroll-hint">↑ 回到分類</div>
-  `;
-
-  page.querySelectorAll('.cloud-word').forEach(el => {
-    el.addEventListener('click', async () => {
-      const word = el.dataset.word;
-      try {
-        const r = await fetch(`/api/keywords/headlines?word=${encodeURIComponent(word)}&limit=1`);
-        const d = await r.json();
-        if (d.items && d.items[0]) {
-          window.openDrawer(d.items[0].id, d.items[0].url);
-        }
-      } catch (e) { console.error(e); }
-    });
-  });
-  return page;
 }
 
 function setupObserver() {
@@ -291,36 +283,28 @@ function setupObserver() {
       if (active) {
         const i = Array.from(pagesEl.children).indexOf(e.target);
         sideNavEl.querySelectorAll('li').forEach((b, j) => b.classList.toggle('active', j === i));
-        const rail = e.target.querySelector('.brick-rail');
-        if (rail) {
-          if (rail.dataset.first) reshuffleSizes(rail);
-          else rail.dataset.first = '1';
+        if (!isMobile()) {
+          const rail = e.target.querySelector('.brick-rail');
+          if (rail) {
+            if (rail.dataset.first) reshuffleSizes(rail);
+            else rail.dataset.first = '1';
+          }
         }
       }
     }
-  }, { root: pagesEl, threshold: [0, 0.55] });
+  }, { root: isMobile() ? null : pagesEl, threshold: [0, 0.55] });
   pagesEl.querySelectorAll('.page').forEach(p => obs.observe(p));
 }
 
 function loadCategories() {
   statusEl.textContent = '載入中…';
-  Promise.all([
-    fetch('/api/categories?limit=80').then(r => r.json()),
-    fetch('/api/keywords?limit=40').then(r => r.json()).catch(() => ({ items: [] })),
-  ])
-    .then(([catData, kwData]) => {
-      const cats = catData.categories || [];
-      const cloud = kwData.items || [];
+  fetch('/api/categories?limit=80')
+    .then(r => r.json())
+    .then(data => {
+      const cats = data.categories || [];
       pagesEl.innerHTML = '';
       for (const cat of cats) pagesEl.appendChild(buildPage(cat));
-      pagesEl.appendChild(buildCloudPage(cloud));
-
-      const navItems = [
-        ...cats.map(c => ({ name: c.name, total_today: c.total_today })),
-        { name: '熱門', total_today: cloud.length },
-      ];
-      buildSideNav(navItems);
-
+      buildSideNav(cats);
       requestAnimationFrame(() => {
         const first = pagesEl.querySelector('.page');
         if (first) first.classList.add('active');
@@ -338,8 +322,9 @@ refreshBtn.addEventListener('click', async () => {
   loadCategories();
 });
 
-// 鍵盤 ↑↓ 切換類別
 window.addEventListener('keydown', e => {
+  if (isMobile()) return;
+  if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
   const pages = Array.from(pagesEl.querySelectorAll('.page'));
   if (!pages.length) return;
   const current = Math.round(pagesEl.scrollTop / window.innerHeight);
@@ -364,11 +349,65 @@ window.addEventListener('storage', e => {
   }
 });
 
-// 視窗大小變化時重排（rows 數量會變）
 let resizeTimer = null;
+let lastIsMobile = isMobile();
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(loadCategories, 250);
+  resizeTimer = setTimeout(() => {
+    if (isMobile() !== lastIsMobile) {
+      lastIsMobile = isMobile();
+      loadCategories();
+    }
+  }, 250);
+});
+
+// ===== top search (全站搜尋) =====
+let searchTimer = null;
+let searchAbort = null;
+async function runTopSearch(q) {
+  if (searchAbort) searchAbort.abort();
+  searchAbort = new AbortController();
+  try {
+    const r = await fetch(`/api/search?q=${encodeURIComponent(q)}&limit=40`, { signal: searchAbort.signal });
+    const { items = [] } = await r.json();
+    if (items.length === 0) {
+      topSearchResults.innerHTML = `<div class="top-search-empty">沒有符合「${escapeHTML(q)}」的標題</div>`;
+    } else {
+      topSearchResults.innerHTML = `
+        <div class="top-search-count">找到 ${items.length} 則</div>
+        ${items.map(it => `
+          <div class="top-search-result" data-id="${it.id}" data-url="${escapeHTML(it.url)}">
+            ${highlightBias(it.title)}
+          </div>
+        `).join('')}
+      `;
+      topSearchResults.querySelectorAll('.top-search-result').forEach(el => {
+        el.addEventListener('click', () => {
+          playClick();
+          window.openDrawer(parseInt(el.dataset.id, 10), el.dataset.url);
+          topSearchResults.hidden = true;
+          topSearchInput.value = '';
+        });
+      });
+    }
+    topSearchResults.hidden = false;
+  } catch (err) { if (err.name !== 'AbortError') console.error(err); }
+}
+topSearchInput.addEventListener('input', () => {
+  const q = topSearchInput.value.trim();
+  clearTimeout(searchTimer);
+  if (!q) { topSearchResults.hidden = true; topSearchResults.innerHTML = ''; return; }
+  topSearchResults.innerHTML = '<div class="top-search-empty">搜尋中…</div>';
+  topSearchResults.hidden = false;
+  searchTimer = setTimeout(() => runTopSearch(q), 180);
+});
+topSearchInput.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    topSearchInput.value = ''; topSearchResults.hidden = true;
+  }
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('.top-search')) topSearchResults.hidden = true;
 });
 
 updateFavCount();

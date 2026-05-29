@@ -3,65 +3,42 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>我的每日情報 · 收藏</title>
+  <title>我的每日情報</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body class="fav">
   <header class="topbar">
-    <div class="brand">
-      <a class="back-link" href="/">
-        <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M15.5 4l-8 8 8 8 1.5-1.5L10.5 12l6.5-6.5z"/></svg>
-        <span>回首頁</span>
-      </a>
-    </div>
-    <div class="controls">
-      <span id="status" class="status"></span>
-    </div>
+    <a class="back-link" href="/">
+      <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M15.5 4l-8 8 8 8 1.5-1.5L10.5 12l6.5-6.5z"/></svg>
+      <span>回首頁</span>
+    </a>
+    <span id="status" class="status"></span>
   </header>
 
-  <main class="fav-layout" id="favLayout">
-    <aside class="trend-col" id="trendCol">
-      <div class="search-box">
-        <input id="searchInput" type="search" placeholder="🔍 搜尋今日標題…" autocomplete="off" />
+  <section class="newspaper" id="newspaper">
+    <header class="masthead">
+      <div class="masthead-top">
+        <span class="meta-l">第 <span id="issueNum">—</span> 期</span>
+        <span class="meta-c">親自精選 · 一報在手</span>
+        <span class="meta-r">售價 <span id="price">NT$ 30</span></span>
       </div>
-      <header class="trend-col-head" id="trendColHead">
-        <h2 id="trendColTitle">今日熱門關鍵字 <span class="count" id="trendDate"></span></h2>
-        <button id="trendToggle" class="col-toggle" type="button" aria-label="收合" title="收合">‹</button>
-      </header>
-      <div class="scroll-area">
-        <ol id="trending" class="kw-list"></ol>
-        <div id="searchResults" class="search-results" hidden></div>
+      <div class="masthead-rule double"></div>
+      <h1 class="masthead-title" id="paperTitleH1"
+          contenteditable="true" spellcheck="false"
+          title="點擊可編輯報名">我的每日情報</h1>
+      <div class="masthead-sub">THE DAILY YOU &nbsp;·&nbsp; A NEWSPAPER OF ONE</div>
+      <div class="masthead-rule"></div>
+      <div class="masthead-bottom">
+        <span id="paperDate"></span>
+        <span class="dot-sep">·</span>
+        <span id="paperCount">0 則剪報</span>
+        <span class="dot-sep">·</span>
+        <span>編輯人 / 我</span>
       </div>
-      <button id="trendExpand" class="trend-collapsed-tab" type="button" hidden>
-        <span class="vt">今日熱門關鍵字 ›</span>
-      </button>
-    </aside>
-
-    <section class="newspaper" id="newspaper">
-      <header class="masthead">
-        <div class="masthead-top">
-          <span class="meta-l">第 <span id="issueNum">—</span> 期</span>
-          <span class="meta-c">親自精選 · 一報在手</span>
-          <span class="meta-r">售價 <span id="price">NT$ 30</span></span>
-        </div>
-        <div class="masthead-rule double"></div>
-        <h1 class="masthead-title" id="paperTitleH1"
-            contenteditable="true" spellcheck="false"
-            title="點擊可編輯報名">我的每日情報</h1>
-        <div class="masthead-sub">THE DAILY YOU &nbsp;·&nbsp; A NEWSPAPER OF ONE</div>
-        <div class="masthead-rule"></div>
-        <div class="masthead-bottom">
-          <span id="paperDate"></span>
-          <span class="dot-sep">·</span>
-          <span id="paperCount">0 則剪報</span>
-          <span class="dot-sep">·</span>
-          <span>編輯人 / 我</span>
-        </div>
-        <div class="masthead-rule"></div>
-      </header>
-      <div id="clippings" class="clippings"></div>
-    </section>
-  </main>
+      <div class="masthead-rule"></div>
+    </header>
+    <div id="clippings" class="clippings"></div>
+  </section>
 
   <script src="/biasWords.js"></script>
   <script src="/favorites-store.js"></script>
