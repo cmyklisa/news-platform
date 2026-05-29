@@ -1,0 +1,20 @@
+{
+  "name": "tw-news-radar",
+  "version": "0.1.0",
+  "description": "Taiwan news real-time intel station (MVP)",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "express": "^4.21.1",
+    "node-cron": "^3.0.3",
+    "rss-parser": "^3.13.0"
+  }
+}

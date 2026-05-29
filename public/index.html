@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>台灣新聞即時情報站</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="home">
+  <header class="floating-top">
+    <div class="brand">
+      <span class="dot"></span>
+      <h1>即時情報站</h1>
+    </div>
+    <div class="controls">
+      <button id="refreshBtn" title="重新整理">↻</button>
+      <a id="favLink" class="fav-link" href="/favorites.html">
+        <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 21s-7-4.6-7-10.3A4.7 4.7 0 0 1 9.7 6c1.6 0 3 .8 3.8 2 .8-1.2 2.2-2 3.8-2A4.7 4.7 0 0 1 22 10.7C22 16.4 12 21 12 21z"/></svg>
+        <span class="badge-count" id="favCount">0</span>
+      </a>
+    </div>
+  </header>
+
+  <nav class="side-nav" id="sideNav" aria-label="類別導覽"></nav>
+
+  <main id="pages" class="pages">
+    <div class="empty page-empty">載入中…</div>
+  </main>
+
+  <span id="status" class="status floating-status"></span>
+
+  <script src="/biasWords.js"></script>
+  <script src="/favorites-store.js"></script>
+  <script src="/drawer.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

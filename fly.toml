@@ -1,0 +1,27 @@
+# Fly.io 設定（Render 之外的備案）：
+#   1) fly launch --no-deploy --copy-config 會用此檔
+#   2) fly volumes create newsdata --size 1 --region nrt
+#   3) fly deploy
+app = "tw-news-radar"
+primary_region = "nrt"
+
+[build]
+  builder = "heroku/builder:24"
+
+[env]
+  NODE_ENV = "production"
+  TZ = "Asia/Taipei"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[mounts]]
+  source = "newsdata"
+  destination = "/data"
+
+# 提示：使用 mount 時，請在 PaaS 設定 NEWS_DB_DIR=/data
+# 並讓 db.js 讀取此環境變數（已支援）。
