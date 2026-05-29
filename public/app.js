@@ -95,7 +95,10 @@ function buildBrick(item) {
     }
   });
 
-  // 點開抽屜（cmd/ctrl/shift/中鍵 仍直開原文）
+  // 點擊邏輯：
+  //  - cmd/ctrl/shift/middle → 直開原文
+  //  - 該事件有多來源 → 放射狀展開兄弟標題
+  //  - 單來源 → 直接開抽屜
   a.addEventListener('click', e => {
     if (a.dataset.suppressClick === '1') {
       e.preventDefault();
@@ -104,9 +107,80 @@ function buildBrick(item) {
     }
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
     e.preventDefault();
-    window.openDrawer(item.id, item.url);
+    if (item.cluster_size && item.cluster_size > 1) {
+      openRadial(item);
+    } else {
+      window.openDrawer(item.id, item.url);
+    }
   });
   return a;
+}
+
+// ===== Radial expand (cluster siblings around original) =====
+let radialEl = null;
+function ensureRadial() {
+  if (radialEl) return radialEl;
+  radialEl = document.createElement('div');
+  radialEl.className = 'radial';
+  radialEl.hidden = true;
+  radialEl.innerHTML = `
+    <div class="radial-backdrop"></div>
+    <div class="radial-hint">同事件其他來源 · 點選任一標題看摘要 · ESC 關閉</div>
+    <button class="radial-close" type="button" aria-label="關閉">✕</button>
+    <div class="radial-stage"><div class="radial-cluster"></div></div>
+  `;
+  document.body.appendChild(radialEl);
+  radialEl.querySelector('.radial-backdrop').addEventListener('click', closeRadial);
+  radialEl.querySelector('.radial-close').addEventListener('click', closeRadial);
+  window.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !radialEl.hidden) closeRadial();
+  });
+  return radialEl;
+}
+function closeRadial() {
+  if (radialEl) radialEl.hidden = true;
+}
+async function openRadial(item) {
+  const el = ensureRadial();
+  const cluster = el.querySelector('.radial-cluster');
+  cluster.innerHTML = `<div class="radial-center radial-loading">載入中…</div>`;
+  el.hidden = false;
+
+  try {
+    const r = await fetch(`/api/headline/${item.id}`);
+    const { headline, siblings } = await r.json();
+    if (!siblings || siblings.length === 0) {
+      // 後端說沒有兄弟（資料變了）→ 直接開抽屜
+      closeRadial();
+      window.openDrawer(item.id, item.url);
+      return;
+    }
+    const n = siblings.length;
+    const sibsHtml = siblings.map((s, i) => {
+      const angle = -90 + (i * 360 / n);
+      const delay = (0.06 + i * 0.07).toFixed(2);
+      return `<a class="radial-sibling" data-id="${s.id}" data-url="${escapeHTML(s.url)}"
+                 style="--angle:${angle}deg;--delay:${delay}s">${highlightBias(s.title)}</a>`;
+    }).join('');
+    cluster.innerHTML = `
+      <a class="radial-center" data-id="${headline.id}" data-url="${escapeHTML(headline.url)}">
+        ${highlightBias(headline.title)}
+      </a>
+      ${sibsHtml}
+    `;
+    cluster.querySelectorAll('.radial-center, .radial-sibling').forEach(node => {
+      node.addEventListener('click', e => {
+        e.preventDefault(); e.stopPropagation();
+        const id = parseInt(node.dataset.id, 10);
+        const url = node.dataset.url;
+        closeRadial();
+        window.openDrawer(id, url);
+      });
+    });
+  } catch (err) {
+    cluster.innerHTML = `<div class="radial-center">載入失敗</div>`;
+    setTimeout(closeRadial, 1200);
+  }
 }
 
 function reshuffleSizes(rail) {

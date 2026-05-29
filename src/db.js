@@ -75,9 +75,19 @@ const stmts = {
   headlinesMissingCategory: db.prepare(`SELECT id, title, url FROM headlines WHERE category = 'domestic' OR category IS NULL`),
   allHeadlinesForCategorize: db.prepare(`SELECT id, title, url, category FROM headlines`),
   headlinesByCategory: db.prepare(`
-    SELECT id, url, title, source, published_at, cluster_id, category
+    SELECT h.id, h.url, h.title, h.source, h.published_at, h.cluster_id, h.category,
+           CASE WHEN h.cluster_id IS NULL THEN 1
+                ELSE (SELECT COUNT(*) FROM headlines x WHERE x.cluster_id = h.cluster_id)
+           END AS cluster_size
+    FROM headlines h
+    WHERE h.category = ?
+    ORDER BY h.published_at DESC
+    LIMIT ?
+  `),
+  searchTitles: db.prepare(`
+    SELECT id, url, title, source, published_at, category, cluster_id
     FROM headlines
-    WHERE category = ?
+    WHERE date_key = ? AND title LIKE ?
     ORDER BY published_at DESC
     LIMIT ?
   `),

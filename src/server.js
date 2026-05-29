@@ -78,6 +78,16 @@ app.get('/api/keywords', (req, res) => {
   res.json({ date, items });
 });
 
+// 任意關鍵字搜尋（最愛頁搜尋框用）
+app.get('/api/search', (req, res) => {
+  const q = (req.query.q || '').trim();
+  if (!q) return res.json({ q: '', items: [] });
+  const date = req.query.date || dateKeyFromMs(Date.now());
+  const limit = Math.min(parseInt(req.query.limit, 10) || 80, 300);
+  const items = stmts.searchTitles.all(date, `%${q}%`, limit);
+  res.json({ q, date, items });
+});
+
 // 點某關鍵字 → 列出今日所有包含該詞的標題
 app.get('/api/keywords/headlines', (req, res) => {
   const word = (req.query.word || '').trim();

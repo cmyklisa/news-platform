@@ -4,12 +4,10 @@ services:
     runtime: node
     plan: free
     region: singapore
-    buildCommand: npm install --omit=dev
+    buildCommand: npm ci
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
-      - key: NODE_VERSION
-        value: "20"
       - key: NODE_ENV
         value: production
       - key: TZ

@@ -226,6 +226,64 @@ async function renderClippings() {
   });
 }
 
+// ===== search =====
+const searchInput = document.getElementById('searchInput');
+const searchResults = document.getElementById('searchResults');
+const trendingList = document.getElementById('trending');
+const trendColHead = document.getElementById('trendColHead');
+const trendColTitle = document.getElementById('trendColTitle');
+let searchTimer = null;
+let searchAbort = null;
+
+function runSearch(q) {
+  if (searchAbort) searchAbort.abort();
+  searchAbort = new AbortController();
+  fetch(`/api/search?q=${encodeURIComponent(q)}&limit=100`, { signal: searchAbort.signal })
+    .then(r => r.json())
+    .then(data => {
+      const items = data.items || [];
+      if (items.length === 0) {
+        searchResults.innerHTML = `<div class="search-empty">沒有符合「${escapeHTML(q)}」的標題</div>`;
+        return;
+      }
+      searchResults.innerHTML = `
+        <div class="search-count">找到 ${items.length} 則含「${escapeHTML(q)}」的標題</div>
+        ${items.map(it => `
+          <div class="search-result" data-id="${it.id}" data-url="${escapeHTML(it.url)}">
+            ${window.highlightBiasText(it.title)}
+          </div>
+        `).join('')}
+      `;
+      searchResults.querySelectorAll('.search-result').forEach(el => {
+        el.addEventListener('click', () => {
+          window.openDrawer(parseInt(el.dataset.id, 10), el.dataset.url);
+        });
+      });
+    })
+    .catch(err => { if (err.name !== 'AbortError') console.error(err); });
+}
+
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.trim();
+  clearTimeout(searchTimer);
+  if (!q) {
+    searchResults.hidden = true;
+    searchResults.innerHTML = '';
+    trendingList.hidden = false;
+    trendColTitle.innerHTML = '今日熱門關鍵字 <span class="count" id="trendDate">' +
+      (document.getElementById('trendDate')?.textContent || '') + '</span>';
+    return;
+  }
+  trendingList.hidden = true;
+  searchResults.hidden = false;
+  trendColTitle.innerHTML = `搜尋結果 <span class="count">「${escapeHTML(q)}」</span>`;
+  searchResults.innerHTML = '<div class="search-empty">搜尋中…</div>';
+  searchTimer = setTimeout(() => runSearch(q), 180);
+});
+searchInput.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { searchInput.value = ''; searchInput.dispatchEvent(new Event('input')); }
+});
+
 window.addEventListener('favorites:changed', renderClippings);
 window.addEventListener('storage', e => {
   if (e.key === 'tw-news-favorites') renderClippings();
