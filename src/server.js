@@ -78,9 +78,9 @@ async function fetchLiveWeather() {
   const lons = TW_CITIES.map(c => c.lon).join(',');
   const url = `https://api.open-meteo.com/v1/forecast`
     + `?latitude=${lats}&longitude=${lons}`
-    + `&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m`
-    + `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum`
-    + `&forecast_days=3&timezone=Asia%2FTaipei`;
+    + `&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m,precipitation`
+    + `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max`
+    + `&hourly=precipitation_probability&forecast_days=3&timezone=Asia%2FTaipei`;
   const res = await fetch(url, { headers: { 'User-Agent': 'TWNewsRadar/0.1' } });
   if (!res.ok) throw new Error('open-meteo ' + res.status);
   const json = await res.json();
@@ -91,6 +91,13 @@ async function fetchLiveWeather() {
     const code = cur.weather_code != null ? cur.weather_code : null;
     const w = (code != null && WMO_MAP[code]) || WMO_DEFAULT;
     const daily = d.daily || {};
+    // 接下來 12 小時平均降雨機率（取 hourly 前 12 小時）
+    const hourly = d.hourly || {};
+    const hourlyPp = hourly.precipitation_probability || [];
+    const next12 = hourlyPp.slice(0, 12).filter(v => v != null);
+    const popNow = next12.length
+      ? Math.round(next12.reduce((s, v) => s + v, 0) / next12.length)
+      : (daily.precipitation_probability_max ? daily.precipitation_probability_max[0] : null);
     return {
       code: c.code, name: c.name, lat: c.lat, lon: c.lon, x: c.x, y: c.y,
       temp: cur.temperature_2m != null ? Math.round(cur.temperature_2m) : null,
@@ -98,6 +105,7 @@ async function fetchLiveWeather() {
       wind: cur.wind_speed_10m != null ? Math.round(cur.wind_speed_10m) : null,
       weather_code: code,
       label: w.label, icon: w.icon, color: w.color, type: w.type,
+      pop: popNow,  // 即時降雨機率 (%)
       forecast: (daily.time || []).map((t, j) => {
         const dc = daily.weather_code ? daily.weather_code[j] : null;
         const dw = (dc != null && WMO_MAP[dc]) || WMO_DEFAULT;
@@ -108,6 +116,7 @@ async function fetchLiveWeather() {
           tmax: daily.temperature_2m_max ? Math.round(daily.temperature_2m_max[j]) : null,
           tmin: daily.temperature_2m_min ? Math.round(daily.temperature_2m_min[j]) : null,
           precip: daily.precipitation_sum ? daily.precipitation_sum[j] : null,
+          pop: daily.precipitation_probability_max ? daily.precipitation_probability_max[j] : null,
         };
       }),
     };
@@ -339,16 +348,19 @@ app.get('/api/categories', (req, res) => {
     LIMIT ?
   `).all(today, Math.max(perCat, 300));
 
-  const result = [
-    { code: 'hot', name: '熱門', total_today: hotItems.length, items: hotItems },
-    ...CATEGORIES.map(c => ({
-      code: c.code,
-      name: c.name,
-      total_today: countMap.get(c.code) || 0,
-      items: stmts.headlinesByCategory.all(c.code, perCat),
-    })),
-  ];
-  res.json({ categories: result, today });
+  const regular = CATEGORIES.map(c => ({
+    code: c.code,
+    name: c.name,
+    total_today: countMap.get(c.code) || 0,
+    items: stmts.headlinesByCategory.all(c.code, perCat),
+  }));
+  // 熱門：放在「美食」前面
+  const foodIdx = regular.findIndex(c => c.code === 'food');
+  const hotCat = { code: 'hot', name: '熱門', total_today: hotItems.length, items: hotItems };
+  if (foodIdx >= 0) regular.splice(foodIdx, 0, hotCat);
+  else regular.unshift(hotCat);
+
+  res.json({ categories: regular, today });
 });
 
 app.listen(PORT, '0.0.0.0', () => {

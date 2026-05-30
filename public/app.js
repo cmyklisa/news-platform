@@ -1,6 +1,6 @@
 // 主頁：桌機橫向滑動 + 12 類別 + 標籤雲在首位 + 聚寶盆 radial + 全站搜尋
 const pagesEl = document.getElementById('pages');
-const sideNavEl = document.getElementById('sideNav');
+const sideNavEl = document.getElementById('topNav');
 const statusEl = document.getElementById('status');
 const favCountEl = document.getElementById('favCount');
 const refreshBtn = null; // 已移除按鈕，autorefresh 每 5 分鐘照跑
@@ -51,6 +51,22 @@ function formatTime(ms) {
 }
 function updateFavCount() { favCountEl.textContent = window.Favorites.count(); }
 
+// 簡易 toast 通知
+let toastTimer = null;
+function showToast(msg) {
+  let t = document.getElementById('appToast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'appToast';
+    t.className = 'app-toast';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
 // ===== brick =====
 function buildBrick(item) {
   const a = document.createElement('a');
@@ -73,8 +89,9 @@ function buildBrick(item) {
     </button>
   `;
 
-  a.querySelector('.fav-btn').addEventListener('click', e => {
-    e.preventDefault(); e.stopPropagation();
+  const favBtn = a.querySelector('.fav-btn');
+  const doToggleFav = (ev) => {
+    if (ev) { ev.preventDefault(); ev.stopPropagation(); }
     const nowFav = window.Favorites.toggle({ id: item.id, url: item.url, title: item.title });
     document.querySelectorAll(`.brick[data-url="${CSS.escape(item.url)}"]`).forEach(el => {
       el.classList.toggle('favored', nowFav);
@@ -82,7 +99,13 @@ function buildBrick(item) {
       if (path) path.setAttribute('fill', nowFav ? 'currentColor' : 'none');
     });
     updateFavCount();
-  });
+    showToast(nowFav ? '✓ 已加入新聞筆記' : '已從新聞筆記移除');
+    a.classList.add('just-saved');
+    setTimeout(() => a.classList.remove('just-saved'), 700);
+  };
+  // pointerdown 早於 click，避免 touch 競態（手機長按/輕點都能正確分流）
+  favBtn.addEventListener('pointerdown', e => e.stopPropagation());
+  favBtn.addEventListener('click', doToggleFav);
 
   // mobile long-press shows heart
   let pressTimer = null;
@@ -317,13 +340,18 @@ function buildPage(cat) {
 }
 
 function buildSideNav(items) {
-  sideNavEl.innerHTML = `<ul>${items.map((c, i) => `
-    <li data-i="${i}" data-code="${c.code || ''}" data-count="${c.total_today ?? c.total ?? ''}">${escapeHTML(c.name)}</li>
-  `).join('')}</ul>`;
-  sideNavEl.querySelectorAll('li').forEach(li => {
-    li.addEventListener('click', () => {
-      const i = parseInt(li.dataset.i, 10);
-      pagesEl.scrollTo({ top: i * window.innerHeight, behavior: 'smooth' });
+  sideNavEl.innerHTML = items.map((c, i) => `
+    <button class="top-nav-item" data-i="${i}" data-code="${c.code || ''}"
+            data-count="${c.total_today ?? c.total ?? ''}" type="button">
+      <span class="tn-name">${escapeHTML(c.name)}</span>
+      <span class="tn-count">${c.total_today ?? c.total ?? ''}</span>
+    </button>
+  `).join('');
+  sideNavEl.querySelectorAll('.top-nav-item').forEach(b => {
+    b.addEventListener('click', () => {
+      const i = parseInt(b.dataset.i, 10);
+      if (isMobile()) pagesEl.scrollTo({ left: i * window.innerWidth, behavior: 'smooth' });
+      else pagesEl.scrollTo({ top: i * window.innerHeight, behavior: 'smooth' });
     });
   });
 }
@@ -356,7 +384,14 @@ function setupObserver() {
       e.target.classList.toggle('active', active);
       if (active) {
         const i = Array.from(pagesEl.children).indexOf(e.target);
-        sideNavEl.querySelectorAll('li').forEach((b, j) => b.classList.toggle('active', j === i));
+        sideNavEl.querySelectorAll('.top-nav-item').forEach((b, j) => {
+          const isActive = j === i;
+          b.classList.toggle('active', isActive);
+          if (isActive) {
+            // 自動水平捲到 active 的位置
+            b.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+          }
+        });
         if (mobileDotsEl) {
           mobileDotsEl.querySelectorAll('span').forEach((d, j) => d.classList.toggle('active', j === i));
         }
@@ -390,7 +425,7 @@ function loadCategories() {
       requestAnimationFrame(() => {
         const first = pagesEl.querySelector('.page');
         if (first) first.classList.add('active');
-        sideNavEl.querySelector('li')?.classList.add('active');
+        sideNavEl.querySelector('.top-nav-item')?.classList.add('active');
         ensureMobileDots(cats.length);
         setupObserver();
       });

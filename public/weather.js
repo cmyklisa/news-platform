@@ -37,6 +37,14 @@ function renderMap(cities) {
     g.setAttribute('class', 'map-city');
     g.dataset.code = c.code;
     g.setAttribute('transform', `translate(${c.x} ${c.y})`);
+    const popBadge = (c.pop != null && c.pop > 0)
+      ? `<g transform="translate(11 -11)">
+           <rect x="-8" y="-6" width="22" height="12" rx="6"
+                 fill="#2a78b8" stroke="#0c0d10" stroke-width="0.8" />
+           <text x="3" y="3" text-anchor="middle" font-size="7"
+                 fill="#fff" font-weight="800" font-family="sans-serif">${c.pop}%</text>
+         </g>`
+      : '';
     g.innerHTML = `
       <circle r="14" fill="${c.color}" stroke="#0c0d10" stroke-width="1.6"
               filter="drop-shadow(0 1px 2px rgba(0,0,0,0.6))" />
@@ -44,6 +52,7 @@ function renderMap(cities) {
             font-weight="800" font-family="serif" letter-spacing="1">${c.temp != null ? c.temp + '°' : '-'}</text>
       <text y="28" text-anchor="middle" font-size="10" fill="#e7e8ea"
             font-weight="700" font-family="serif" stroke="#0c0d10" stroke-width="3" paint-order="stroke">${c.name}</text>
+      ${popBadge}
     `;
     g.addEventListener('click', () => openCityDetail(c));
     citiesG.appendChild(g);
@@ -102,6 +111,7 @@ function openCityDetail(c) {
     <div class="wx-pop-stats">
       <div><span>濕度</span><strong>${c.humidity ?? '-'}%</strong></div>
       <div><span>風速</span><strong>${c.wind ?? '-'} km/h</strong></div>
+      <div><span>降雨機率</span><strong>${c.pop != null ? c.pop + '%' : '-'}</strong></div>
     </div>
     <div class="wx-pop-forecast">
       ${(c.forecast || []).map((f, i) => {
@@ -113,7 +123,8 @@ function openCityDetail(c) {
             <div class="wx-day-icon">${f.icon}</div>
             <div class="wx-day-cond">${escapeHTML(f.label)}</div>
             <div class="wx-day-temp">${f.tmin ?? '-'}° / <strong>${f.tmax ?? '-'}°</strong></div>
-            ${f.precip != null ? `<div class="wx-day-precip">☂ ${f.precip.toFixed(1)}mm</div>` : ''}
+            ${f.pop != null ? `<div class="wx-day-pop">☂ ${f.pop}%</div>` : ''}
+            ${f.precip != null && f.precip > 0 ? `<div class="wx-day-precip">${f.precip.toFixed(1)}mm</div>` : ''}
           </div>
         `;
       }).join('')}

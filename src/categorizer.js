@@ -5,13 +5,14 @@
 const CATEGORIES = [
   { code: 'domestic',    name: '台灣' },
   { code: 'society',     name: '社會' },
-  { code: 'world',       name: '國際' },
+  { code: 'policy',      name: '政策' },   // 與國際對調
   { code: 'crossstrait', name: '大陸' },
   { code: 'usa',         name: '美國' },
   { code: 'economy',     name: '經濟' },
   { code: 'tech',        name: '科技' },
-  { code: 'policy',      name: '政策' },
+  { code: 'world',       name: '國際' },   // 與政策對調
   { code: 'military',    name: '軍事' },
+  // (熱門虛擬類別會被 splice 進此處)
   { code: 'food',        name: '美食' },
   { code: 'local',       name: '地方' },
   { code: 'sports',      name: '體育' },

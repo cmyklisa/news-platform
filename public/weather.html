@@ -20,22 +20,32 @@
     <section class="wx-hero">
       <div class="wx-map-wrap">
         <div class="wx-map-hint">👆 點任一縣市看詳情</div>
-        <svg id="twMap" class="tw-map" viewBox="0 0 240 380" xmlns="http://www.w3.org/2000/svg">
-          <!-- 簡化的台灣島輪廓 -->
-          <path d="M 100 30
-                   Q 130 18 145 40
-                   Q 168 70 172 110
-                   Q 175 160 168 210
-                   Q 162 270 132 320
-                   Q 110 345 92 330
-                   Q 60 305 55 250
-                   Q 50 200 60 150
-                   Q 65 90 80 50
-                   Q 90 30 100 30 Z"
-                fill="rgba(40,50,65,0.5)" stroke="#3a4252" stroke-width="1.5" />
-          <!-- 中央山脈線 -->
-          <path d="M 120 60 Q 130 130 128 200 Q 124 270 110 310"
-                fill="none" stroke="rgba(120,160,140,0.25)" stroke-width="2" stroke-dasharray="4 6" />
+        <svg id="twMap" class="tw-map" viewBox="0 0 240 400" xmlns="http://www.w3.org/2000/svg">
+          <!-- 較細緻的台灣輪廓（簡化但形狀更接近真實） -->
+          <defs>
+            <linearGradient id="islandGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="rgba(50,68,86,0.6)"/>
+              <stop offset="100%" stop-color="rgba(30,40,52,0.7)"/>
+            </linearGradient>
+          </defs>
+          <path d="M 138 28
+                   L 152 38 L 162 56 L 169 75 L 174 96
+                   L 178 122 L 180 150 L 178 178 L 174 206
+                   L 168 232 L 158 256 L 144 280 L 128 302
+                   L 113 320 L 100 332 L 90 332
+                   L 82 320 L 76 304 L 68 282 L 60 256
+                   L 54 232 L 50 206 L 48 178 L 50 150
+                   L 54 122 L 62 96 L 72 75 L 84 56
+                   L 100 40 L 118 30 Z"
+                fill="url(#islandGrad)"
+                stroke="#5a6a82" stroke-width="1.4" stroke-linejoin="round" />
+          <!-- 中央山脈 -->
+          <path d="M 122 60 Q 132 110 130 160 Q 126 220 118 268 Q 110 304 100 320"
+                fill="none" stroke="rgba(150,190,160,0.32)" stroke-width="2.5"
+                stroke-dasharray="3 5" stroke-linecap="round" />
+          <!-- 離島標記區（左下） -->
+          <text x="20" y="170" font-size="6" fill="rgba(255,255,255,0.25)"
+                font-family="serif" letter-spacing="2">離島</text>
           <g id="mapCities"></g>
         </svg>
         <div class="wx-legend">
