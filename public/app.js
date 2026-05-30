@@ -17,6 +17,8 @@ const SIZE_POOL = [
 ];
 
 const isMobile = () => window.innerWidth <= 768;
+const COPIES_DESKTOP = 6;
+const ROWS_DESKTOP = 6;
 
 function escapeHTML(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -233,51 +235,37 @@ function buildPage(cat) {
     <div class="watermark">${escapeHTML(cat.name)}</div>
     <div class="watermark-meta">今日 ${cat.total_today} 則 · 顯示 ${cat.items.length}</div>
     <div class="brick-rail" data-code="${cat.code}"></div>
+    <div class="scroll-hint">↔ 橫向滑看更多　·　↓ 切換類別</div>
   `;
   const rail = page.querySelector('.brick-rail');
   const items = cat.items || [];
   if (items.length === 0) {
-    rail.innerHTML = `<div style="grid-column:1/-1;grid-row:1/-1;display:flex;align-items:center;justify-content:center;color:var(--muted);font-family:var(--sans)">此類別尚無資料</div>`;
+    rail.innerHTML = `<div style="margin:auto;color:var(--muted);font-family:var(--sans);padding:40px">此類別尚無資料</div>`;
+    rail.style.alignItems = 'center';
+    rail.style.justifyContent = 'center';
     return page;
   }
-  for (const it of items) rail.appendChild(buildBrick(it));
-  return page;
-}
 
-// ===== build cloud (tag cloud) panel =====
-function buildCloudPage(cloudItems) {
-  const page = document.createElement('section');
-  page.className = 'page cloud-page';
-  page.dataset.code = 'cloud';
-  const counts = cloudItems.map(k => k.count);
-  const maxC = counts.length ? Math.max(...counts) : 1;
-  const minC = counts.length ? Math.min(...counts) : 1;
-  const words = cloudItems.map(k => {
-    const ratio = maxC === minC ? 1 : (k.count - minC) / (maxC - minC);
-    const size = Math.round(15 + ratio * 56);
-    const opacity = (0.55 + ratio * 0.45).toFixed(2);
-    return `<span class="cloud-word" data-word="${escapeHTML(k.word)}"
-                  style="font-size:${size}px;opacity:${opacity}">${escapeHTML(k.word)}<em class="cloud-count">${k.count}</em></span>`;
-  }).join(' ');
-
-  page.innerHTML = `
-    <div class="watermark">熱門</div>
-    <div class="watermark-meta">今日熱門關鍵字 · 點擊查看相關新聞</div>
-    <div class="cloud-wrap">
-      <div class="cloud-title">TODAY · TRENDING</div>
-      <div class="cloud">${words || '<span style="color:var(--muted);font-family:var(--sans);font-size:14px">資料尚少，再多幾次抓取後產生</span>'}</div>
-    </div>
-  `;
-  page.querySelectorAll('.cloud-word').forEach(el => {
-    el.addEventListener('click', async () => {
-      const word = el.dataset.word;
-      try {
-        const r = await fetch(`/api/keywords/headlines?word=${encodeURIComponent(word)}&limit=1`);
-        const d = await r.json();
-        if (d.items && d.items[0]) window.openDrawer(d.items[0].id, d.items[0].url);
-      } catch {}
-    });
-  });
+  if (isMobile()) {
+    // 手機：垂直列表，一則一行，rail 內部上下捲動
+    for (const it of items) rail.appendChild(buildBrick(it));
+  } else {
+    // 桌機：6 排磚牆 + 重複 COPIES 次，rail 內部左右滑
+    const rowEls = [];
+    for (let r = 0; r < ROWS_DESKTOP; r++) {
+      const row = document.createElement('div');
+      row.className = 'brick-row' + (r % 2 === 1 ? ' offset' : '');
+      rail.appendChild(row);
+      rowEls.push(row);
+    }
+    let idx = 0;
+    for (let c = 0; c < COPIES_DESKTOP; c++) {
+      for (const it of items) {
+        rowEls[idx % ROWS_DESKTOP].appendChild(buildBrick(it));
+        idx++;
+      }
+    }
+  }
   return page;
 }
 
@@ -288,18 +276,33 @@ function buildSideNav(items) {
   sideNavEl.querySelectorAll('li').forEach(li => {
     li.addEventListener('click', () => {
       const i = parseInt(li.dataset.i, 10);
-      const target = pagesEl.children[i];
-      if (!target) return;
-      if (isMobile()) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      else pagesEl.scrollTo({ left: i * window.innerWidth, behavior: 'smooth' });
+      pagesEl.scrollTo({ top: i * window.innerHeight, behavior: 'smooth' });
     });
   });
 }
 
+// 手機底部頁面指示器
+let mobileDotsEl = null;
+function ensureMobileDots(count) {
+  if (!isMobile()) {
+    if (mobileDotsEl) mobileDotsEl.remove();
+    mobileDotsEl = null;
+    return;
+  }
+  if (!mobileDotsEl) {
+    mobileDotsEl = document.createElement('div');
+    mobileDotsEl.className = 'mobile-page-dots';
+    document.body.appendChild(mobileDotsEl);
+  }
+  mobileDotsEl.innerHTML = '';
+  for (let i = 0; i < count; i++) {
+    const dot = document.createElement('span');
+    if (i === 0) dot.classList.add('active');
+    mobileDotsEl.appendChild(dot);
+  }
+}
+
 function setupObserver() {
-  const opts = isMobile()
-    ? { threshold: [0, 0.55] }
-    : { root: pagesEl, threshold: [0, 0.55] };
   const obs = new IntersectionObserver(entries => {
     for (const e of entries) {
       const active = e.intersectionRatio > 0.55;
@@ -307,6 +310,9 @@ function setupObserver() {
       if (active) {
         const i = Array.from(pagesEl.children).indexOf(e.target);
         sideNavEl.querySelectorAll('li').forEach((b, j) => b.classList.toggle('active', j === i));
+        if (mobileDotsEl) {
+          mobileDotsEl.querySelectorAll('span').forEach((d, j) => d.classList.toggle('active', j === i));
+        }
         if (!isMobile()) {
           const rail = e.target.querySelector('.brick-rail');
           if (rail) {
@@ -316,35 +322,25 @@ function setupObserver() {
         }
       }
     }
-  }, opts);
+  }, { root: pagesEl, threshold: [0, 0.55] });
   pagesEl.querySelectorAll('.page').forEach(p => obs.observe(p));
 }
 
 // ===== load =====
 function loadCategories() {
   statusEl.textContent = '載入中…';
-  Promise.all([
-    fetch('/api/categories?limit=80').then(r => r.json()),
-    fetch('/api/keywords?limit=40').then(r => r.json()).catch(() => ({ items: [] })),
-  ])
-    .then(([catData, kwData]) => {
-      const cats = catData.categories || [];
-      const cloud = kwData.items || [];
+  fetch('/api/categories?limit=80')
+    .then(r => r.json())
+    .then(data => {
+      const cats = data.categories || [];
       pagesEl.innerHTML = '';
-      // 標籤雲放在首位（桌機 = 左、手機 = 上）
-      pagesEl.appendChild(buildCloudPage(cloud));
       for (const cat of cats) pagesEl.appendChild(buildPage(cat));
-
-      const navItems = [
-        { name: '熱門', total_today: cloud.length },
-        ...cats.map(c => ({ name: c.name, total_today: c.total_today })),
-      ];
-      buildSideNav(navItems);
-
+      buildSideNav(cats);
       requestAnimationFrame(() => {
         const first = pagesEl.querySelector('.page');
         if (first) first.classList.add('active');
         sideNavEl.querySelector('li')?.classList.add('active');
+        ensureMobileDots(cats.length);
         setupObserver();
       });
       statusEl.textContent = `更新於 ${formatTime(Date.now())}`;
@@ -358,38 +354,31 @@ refreshBtn.addEventListener('click', async () => {
   loadCategories();
 });
 
-// 鍵盤：← → 切換 panel（桌機）
+// 鍵盤：桌機 ↑↓ 切類別、手機 ←→ 翻頁
 window.addEventListener('keydown', e => {
-  if (isMobile()) return;
   if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
   const pages = Array.from(pagesEl.querySelectorAll('.page'));
   if (!pages.length) return;
-  const current = Math.round(pagesEl.scrollLeft / window.innerWidth);
+  const mobile = isMobile();
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const current = mobile
+    ? Math.round(pagesEl.scrollLeft / w)
+    : Math.round(pagesEl.scrollTop / h);
   let next = current;
-  if (e.key === 'ArrowRight' || e.key === 'PageDown') next = Math.min(current + 1, pages.length - 1);
-  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') next = Math.max(current - 1, 0);
-  else return;
-  e.preventDefault();
-  pagesEl.scrollTo({ left: next * window.innerWidth, behavior: 'smooth' });
-});
-
-// 桌機：轉直向滾輪 → 橫向 scroll；trackpad 橫向自然通過
-let wheelAccum = 0;
-let wheelRaf = null;
-pagesEl.addEventListener('wheel', e => {
-  if (isMobile()) return;
-  // 若已有橫向 delta（trackpad swipe），直接通過
-  if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
-  if (Math.abs(e.deltaY) < 1) return;
-  e.preventDefault();
-  wheelAccum += e.deltaY * 1.4;
-  if (!wheelRaf) {
-    wheelRaf = requestAnimationFrame(() => {
-      pagesEl.scrollLeft += wheelAccum;
-      wheelAccum = 0; wheelRaf = null;
-    });
+  if (mobile) {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') next = Math.min(current + 1, pages.length - 1);
+    else if (e.key === 'ArrowLeft'  || e.key === 'PageUp')   next = Math.max(current - 1, 0);
+    else return;
+  } else {
+    if (e.key === 'ArrowDown' || e.key === 'PageDown') next = Math.min(current + 1, pages.length - 1);
+    else if (e.key === 'ArrowUp'   || e.key === 'PageUp')   next = Math.max(current - 1, 0);
+    else return;
   }
-}, { passive: false });
+  e.preventDefault();
+  if (mobile) pagesEl.scrollTo({ left: next * w, behavior: 'smooth' });
+  else        pagesEl.scrollTo({ top:  next * h, behavior: 'smooth' });
+});
 
 window.addEventListener('favorites:changed', updateFavCount);
 window.addEventListener('storage', e => {

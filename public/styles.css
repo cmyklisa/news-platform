@@ -154,24 +154,19 @@ a { color: inherit; text-decoration: none; }
 }
 .side-nav li.active::after { color: var(--accent); }
 
-/* ===== pages (desktop: HORIZONTAL flow) ===== */
+/* ===== pages (desktop: VERTICAL flow between categories) ===== */
 .pages {
   width: 100vw; height: 100vh;
-  display: flex; flex-direction: row;
-  overflow-x: auto; overflow-y: hidden;
-  scroll-snap-type: x proximity;
+  overflow-y: auto; overflow-x: hidden;
+  scroll-snap-type: y proximity;
   scroll-behavior: smooth;
   scrollbar-width: none;
 }
 .pages::-webkit-scrollbar { display: none; }
-.page-empty {
-  flex: 0 0 100vw;
-  padding: 40vh 0; text-align: center; color: var(--muted);
-}
+.page-empty { padding: 40vh 0; text-align: center; color: var(--muted); }
 
 .page {
   position: relative;
-  flex: 0 0 100vw;
   width: 100vw; height: 100vh;
   scroll-snap-align: start;
   scroll-snap-stop: normal;
@@ -234,22 +229,27 @@ a { color: inherit; text-decoration: none; }
   margin-top: 4px; font-family: var(--sans);
 }
 
-/* ===== brick rail (desktop: fill panel, no inner scroll) ===== */
+/* ===== brick rail (desktop: rows of bricks, horizontal scroll) ===== */
 .brick-rail {
   position: relative; z-index: 1;
   width: 100%; height: 100%;
-  display: grid;
-  grid-template-columns: repeat(var(--cols, 7), minmax(0, 1fr));
-  grid-template-rows: repeat(var(--rows, 6), minmax(0, 1fr));
-  padding: 56px 0 32px 110px;
-  overflow: hidden;
-  transform: translateX(40px); opacity: 0;
+  display: flex; flex-direction: column;
+  padding-left: 110px; padding-top: 50px;
+  overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: none;
+  transform: translateY(28px); opacity: 0;
   transition: transform .6s cubic-bezier(.2,.7,.2,1), opacity .6s ease;
 }
+.brick-rail::-webkit-scrollbar { display: none; }
 .page.active .brick-rail { transform: none; opacity: 1; }
 
+.brick-row { display: flex; flex: 1 0 0; min-height: 0; }
+.brick-row.offset { padding-left: calc(var(--brick-w, 320px) / 2); }
+
 .brick {
-  width: 100%; height: 100%;
+  flex: 0 0 var(--brick-w, 320px);
+  width: var(--brick-w, 320px); min-width: var(--brick-w, 320px);
+  height: 100%;
   display: flex; align-items: center;
   padding: 10px 16px;
   cursor: pointer; overflow: hidden;
@@ -350,120 +350,128 @@ a { color: inherit; text-decoration: none; }
   50%     { opacity: .6;  transform: translate(-50%, 2px); }
 }
 
-/* desktop column count by viewport width */
-@media (min-width: 769px)  and (max-width: 1100px) { .brick-rail { --cols: 5; --rows: 6; } }
-@media (min-width: 1101px) and (max-width: 1500px) { .brick-rail { --cols: 6; --rows: 6; } }
-@media (min-width: 1501px)                         { .brick-rail { --cols: 7; --rows: 6; } }
+/* desktop brick width by viewport */
+@media (min-width: 769px)  and (max-width: 1280px) { .brick-rail { --brick-w: 300px; } }
+@media (min-width: 1281px) and (max-width: 1700px) { .brick-rail { --brick-w: 320px; } }
+@media (min-width: 1701px)                         { .brick-rail { --brick-w: 360px; } }
 
-/* ===== MOBILE: < 768px → vertical list ===== */
+/* ===== MOBILE: < 768px → 橫向翻頁切類別 + 每頁內標題垂直捲動 ===== */
 @media (max-width: 768px) {
-  body.home { height: auto; overflow-x: hidden; overflow-y: auto; }
+  body.home { height: 100vh !important; overflow: hidden !important; }
+
+  /* 主容器改成水平 flex，每個類別頁佔滿一個螢幕，scroll-snap 翻頁 */
   .pages {
-    height: auto; width: 100%;
-    display: block;
-    overflow: visible;
-    scroll-snap-type: none; scroll-behavior: auto;
+    width: 100vw !important; height: 100vh !important;
+    display: flex !important; flex-direction: row !important;
+    overflow-x: auto !important; overflow-y: hidden !important;
+    scroll-snap-type: x mandatory !important;
+    scroll-behavior: smooth !important;
+    -webkit-overflow-scrolling: touch;
   }
+
+  /* 每頁是 flex column：header + brick-rail（佔剩餘空間且垂直 scroll） */
   .page {
-    flex: none; width: 100%; height: auto; min-height: auto;
-    scroll-snap-align: none;
-    overflow: visible;
-    padding-bottom: 8px;
+    flex: 0 0 100vw !important;
+    display: flex !important; flex-direction: column !important;
+    width: 100vw !important; height: 100vh !important;
+    scroll-snap-align: start !important; scroll-snap-stop: always !important;
+    overflow: hidden !important;
+    padding-top: 48px !important;       /* 避開 floating top */
   }
-  .side-nav { display: none; }
-  .watermark, .scroll-hint, .watermark-meta { display: none; }
 
-  .page-header { display: block; top: 48px; }
+  .side-nav { display: none !important; }
+  .watermark, .scroll-hint, .watermark-meta { display: none !important; }
 
+  /* 類別 sticky header 在每頁頂端 */
+  .page-header {
+    display: block !important;
+    position: static !important;
+    flex: 0 0 auto !important;
+    padding: 12px 16px !important;
+    background: hsla(var(--hue), var(--sat), 10%, 0.95) !important;
+    border-bottom: 1px solid hsla(var(--hue), var(--sat), 22%, 0.5) !important;
+    backdrop-filter: blur(8px);
+  }
+
+  /* brick-rail 變成佔剩下空間的垂直捲動列表 */
   .brick-rail {
-    height: auto; width: 100%;
-    display: block;
-    grid-template-columns: none; grid-template-rows: none;
-    padding: 0;
-    transform: none; opacity: 1;
-    overflow: visible;
+    flex: 1 1 auto !important;
+    width: 100% !important; height: auto !important;
+    display: block !important;
+    overflow-y: auto !important; overflow-x: hidden !important;
+    padding: 0 !important;
+    transform: none !important; opacity: 1 !important;
+    transition: none !important;
+    -webkit-overflow-scrolling: touch;
   }
 
   .brick {
-    width: 100%; min-width: 0; height: auto;
-    padding: 14px 18px;
-    border: none;
-    border-bottom: 1px solid hsla(var(--hue), var(--sat), 6%, 0.8);
+    display: block !important;
+    width: 100% !important; min-width: 0 !important;
+    height: auto !important;
+    padding: 14px 18px !important;
+    border: none !important;
+    border-bottom: 1px solid hsla(var(--hue), var(--sat), 6%, 0.85) !important;
     box-shadow:
-      inset 0 1px 0 hsla(var(--hue), var(--sat), 25%, 0.15),
-      inset 0 -1px 0 hsla(var(--hue), var(--sat), 3%, 0.4);
-    border-radius: 0;
-    margin: 0;
+      inset 0 1px 0 hsla(var(--hue), var(--sat), 25%, 0.18),
+      inset 0 -1px 0 hsla(var(--hue), var(--sat), 3%, 0.4) !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    position: relative;
   }
-  .brick:hover { transform: none; }
+  .brick:hover { transform: none !important; }
+
+  /* 標題完整顯示、按大中小三段字級 */
   .brick-text {
+    display: block !important;
     -webkit-line-clamp: unset !important;
-    display: block;
-    line-height: 1.5;
+    -webkit-box-orient: initial !important;
+    overflow: visible !important;
+    white-space: normal !important;
+    line-height: 1.5 !important;
+    width: 100% !important;
   }
-  .brick.size-l .brick-text { font-size: 22px; font-weight: 700; }
-  .brick.size-m .brick-text { font-size: 17px; font-weight: 600; }
-  .brick.size-s .brick-text { font-size: 14.5px; font-weight: 500; color: var(--fg-muted); }
+  .brick.size-l .brick-text { font-size: 22px !important; font-weight: 700 !important; }
+  .brick.size-m .brick-text { font-size: 17px !important; font-weight: 600 !important; }
+  .brick.size-s .brick-text { font-size: 14.5px !important; font-weight: 500 !important; color: var(--fg-muted); }
+
+  /* 愛心常駐顯示（沒 hover） */
+  .brick .fav-btn {
+    opacity: 0.55 !important; pointer-events: auto !important;
+    transform: scale(1) !important;
+  }
+  .brick.favored .fav-btn { opacity: 1 !important; }
+
+  /* 翻頁進度條（小點點在 topbar 下方） */
+  .mobile-page-dots {
+    display: flex !important;
+    position: fixed; top: 48px; left: 0; right: 0; z-index: 38;
+    justify-content: center; gap: 4px;
+    padding: 4px 0;
+    background: linear-gradient(180deg, rgba(12,13,16,0.85), transparent);
+    pointer-events: none;
+  }
+  .mobile-page-dots span {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: rgba(255,255,255,0.25);
+    transition: background .2s ease, transform .2s ease;
+  }
+  .mobile-page-dots span.active {
+    background: var(--accent); transform: scale(1.4);
+  }
 
   .top-search { max-width: none; }
   .top-search input { width: 100%; }
   .top-search-results { width: 100%; }
-  .floating-top { padding: 8px 12px; gap: 8px; flex-wrap: wrap; }
+  .floating-top { padding: 8px 12px; gap: 8px; flex-wrap: wrap; z-index: 50; }
   .brand h1 { font-size: 14px; letter-spacing: 1px; }
   .controls button { padding: 4px 8px; font-size: 13px; }
   .fav-link span:not(.badge-count) { display: none; }
   .floating-status { display: none; }
 }
 
-/* ===== cloud (tag cloud panel) ===== */
-.page.cloud-page {
-  --hue: 38; --sat: 22%;
-}
-.cloud-wrap {
-  position: relative; z-index: 1;
-  width: 100%; height: 100%;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 70px 60px 50px 130px;
-  overflow: hidden;
-  transform: translateX(40px); opacity: 0;
-  transition: transform .6s cubic-bezier(.2,.7,.2,1), opacity .6s ease;
-}
-.cloud-page.active .cloud-wrap { transform: none; opacity: 1; }
-.cloud-title {
-  font-family: var(--serif); font-size: 14px; font-weight: 600;
-  letter-spacing: 6px; color: rgba(255,255,255,0.4);
-  margin-bottom: 24px; text-transform: uppercase;
-}
-.cloud {
-  max-width: 1100px; max-height: 70vh;
-  text-align: center; line-height: 1.55;
-  font-family: var(--serif);
-  overflow: hidden;
-}
-.cloud-word {
-  display: inline-block; margin: 4px 10px;
-  cursor: pointer; vertical-align: middle;
-  transition: color .15s ease, transform .15s ease;
-  color: var(--fg-muted); font-weight: 700;
-  letter-spacing: 1px;
-}
-.cloud-word:hover { color: var(--accent); transform: scale(1.06); }
-.cloud-word .cloud-count {
-  font-size: 0.5em; color: var(--hot);
-  margin-left: 5px; vertical-align: super;
-  font-style: normal; font-weight: 500;
-}
-@media (max-width: 768px) {
-  .page.cloud-page {
-    flex: none; width: 100%; height: auto; min-height: auto;
-  }
-  .cloud-wrap {
-    height: auto; min-height: 50vh;
-    padding: 70px 24px 30px;
-    transform: none; opacity: 1;
-  }
-  .cloud { max-height: none; }
-}
+/* dots 預設藏起來，給手機 media query 顯示 */
+.mobile-page-dots { display: none; }
 
 /* ===== radial 聚寶盆 ===== */
 .radial { position: fixed; inset: 0; z-index: 55; }
