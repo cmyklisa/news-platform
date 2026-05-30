@@ -6,6 +6,9 @@ const { fetchAll, backfillCategories } = require('./fetcher');
 const { CATEGORIES, REGIONS, REGION_LABELS, NATIONWIDE_HINTS } = require('./categorizer');
 const keywords = require('./keywords');
 
+// Google News 跳轉至實際 YouTube 連結是受 JS 加密的，server 端 fetch 只會拿到通用 placeholder
+// → 不再嘗試取縮圖，前端用頻道色塊呈現
+
 // === Live weather (Open-Meteo) ===
 const TW_CITIES = [
   { code:'KEE', name:'基隆', lat:25.128, lon:121.739, x:172, y: 64 },
@@ -320,7 +323,7 @@ app.get('/api/categories', (req, res) => {
     stmts.categoryCountsToday.all(today).map(r => [r.category, r.total])
   );
 
-  // 熱門：今日 cluster_size >= 2 的事件，依被報導媒體數排序，取每個 cluster 的最新代表
+  // 熱門：今日所有事件代表（每 cluster 取最新一則），依被報導媒體數 + 新到舊排
   const hotItems = db.prepare(`
     SELECT h.id, h.url, h.title, h.source, h.published_at, h.cluster_id, h.category,
            cs.size AS cluster_size
@@ -328,13 +331,13 @@ app.get('/api/categories', (req, res) => {
     JOIN (
       SELECT cluster_id, COUNT(*) AS size, MAX(published_at) AS latest
       FROM headlines
-      WHERE date_key = ? AND cluster_id IS NOT NULL AND category NOT IN ('video','weather')
+      WHERE date_key = ? AND cluster_id IS NOT NULL
+        AND category NOT IN ('video','weather')
       GROUP BY cluster_id
-      HAVING size >= 2
     ) cs ON cs.cluster_id = h.cluster_id AND h.published_at = cs.latest
     ORDER BY cs.size DESC, h.published_at DESC
     LIMIT ?
-  `).all(today, perCat);
+  `).all(today, Math.max(perCat, 300));
 
   const result = [
     { code: 'hot', name: '熱門', total_today: hotItems.length, items: hotItems },

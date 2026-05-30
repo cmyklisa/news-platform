@@ -94,6 +94,26 @@ function assignCluster(title, dateKey, publishedAt) {
   return newId;
 }
 
+// Google News RSS 的 /articles/{base64} link 隱藏了真正原始 URL
+// 解碼 base64 找裡面的 https URL，特別處理 YouTube
+function decodeGoogleNewsUrl(gnUrl) {
+  try {
+    const m = gnUrl.match(/\/(?:rss\/)?articles\/([A-Za-z0-9_-]+)/);
+    if (!m) return null;
+    let b64 = m[1].replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    const buf = Buffer.from(b64, 'base64');
+    const text = buf.toString('latin1');
+    const urls = text.match(/https?:\/\/[A-Za-z0-9./?=&_%~:\-]+/g) || [];
+    // 先找 YouTube
+    const yt = urls.find(u => /youtube\.com\/watch|youtu\.be\//i.test(u));
+    if (yt) return yt;
+    // 否則找非 Google 域名的第一個
+    const ext = urls.find(u => !/(?:google|gstatic|googleapis)\.com/i.test(u));
+    return ext || null;
+  } catch { return null; }
+}
+
 function extractSummary(item) {
   const raw = item.contentSnippet
     || item.content
@@ -133,9 +153,14 @@ async function fetchOne(source) {
     let inserted = 0;
     const now = Date.now();
     for (const item of feed.items || []) {
-      const url = (item.link || '').trim();
+      let url = (item.link || '').trim();
       const title = (item.title || '').trim();
       if (!url || !title) continue;
+      // Google News 包裝過的 URL 還原成原始連結（YouTube/媒體網址）
+      if (url.includes('news.google.com/') && url.includes('/articles/')) {
+        const real = decodeGoogleNewsUrl(url);
+        if (real) url = real;
+      }
       const publishedAt = pickPublishedMs(item);
       const dateKey = dateKeyFromMs(publishedAt);
       const clusterId = assignCluster(title, dateKey, publishedAt);
