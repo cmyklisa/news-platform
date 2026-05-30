@@ -86,32 +86,22 @@ async function renderClippings() {
     clippingsEl.innerHTML = `
       <div class="paper-empty">
         <strong>本期報紙還沒有剪報</strong>
-        回首頁滑動軸，把滑鼠移到任何標題、點愛心即可收藏到這份報紙。
+        回首頁，把滑鼠移到任何標題、點愛心即可收藏到這份報紙。
       </div>`;
     return;
   }
 
   const fullMap = await loadFullHeadlines(favs);
 
+  // 精簡：只呈現標題；hover 才有取消按鈕
   clippingsEl.innerHTML = favs.map((fav, i) => {
     const full = fullMap.get(fav.id);
     const title = (full && full.title) || fav.title;
-    const summaryRaw = full && full.summary ? full.summary : '';
-    const summary = summaryRaw ? firstTwoSentences(summaryRaw) : '';
-    const source = full && full.source ? window.sourceName(full.source) : '';
-    const published = full && full.published_at ? full.published_at : null;
     const tier = tierForIndex(i);
-
     return `
       <article class="clip ${tier}" data-url="${escapeHTML(fav.url)}" data-id="${full ? full.id : ''}">
         <h2 class="clip-title">${window.highlightBiasText(title)}</h2>
-        ${summary ? `<p class="clip-deck">${window.highlightBiasText(summary)}</p>` : ''}
-        <div class="clip-byline">
-          ${source ? `<span class="src">${escapeHTML(source)}</span><span class="sep">·</span>` : ''}
-          ${published ? `<span>${window.formatFullTime(published)}</span><span class="sep">·</span>` : ''}
-          <span>收藏於 ${formatSaved(fav.savedAt)}</span>
-          <button class="rm" type="button">取消收藏</button>
-        </div>
+        <button class="clip-rm" type="button" aria-label="取消收藏">×</button>
       </article>
     `;
   }).join('');
@@ -120,17 +110,65 @@ async function renderClippings() {
     const url = card.dataset.url;
     const id = parseInt(card.dataset.id, 10);
     card.addEventListener('click', e => {
-      if (e.target.closest('.rm')) return;
+      if (e.target.closest('.clip-rm')) return;
       if (id) window.openDrawer(id, url);
       else window.open(url, '_blank', 'noopener');
     });
-    card.querySelector('.rm').addEventListener('click', e => {
+    card.querySelector('.clip-rm').addEventListener('click', e => {
       e.stopPropagation();
       window.Favorites.remove(url);
       renderClippings();
     });
   });
 }
+
+// ===== search (今日所有標題) =====
+const paperSearch = document.getElementById('paperSearch');
+const paperSearchResults = document.getElementById('paperSearchResults');
+let searchTimer = null;
+let searchAbort = null;
+async function runSearch(q) {
+  if (searchAbort) searchAbort.abort();
+  searchAbort = new AbortController();
+  try {
+    const r = await fetch(`/api/search?q=${encodeURIComponent(q)}&limit=80`, { signal: searchAbort.signal });
+    const { items = [] } = await r.json();
+    if (items.length === 0) {
+      paperSearchResults.innerHTML = `<div class="paper-search-empty">沒有符合「${escapeHTML(q)}」的標題</div>`;
+    } else {
+      paperSearchResults.innerHTML = `
+        <div class="paper-search-count">找到 ${items.length} 則</div>
+        ${items.map(it => `
+          <div class="paper-search-result" data-id="${it.id}" data-url="${escapeHTML(it.url)}">
+            ${window.highlightBiasText(it.title)}
+          </div>
+        `).join('')}
+      `;
+      paperSearchResults.querySelectorAll('.paper-search-result').forEach(el => {
+        el.addEventListener('click', () => {
+          window.openDrawer(parseInt(el.dataset.id, 10), el.dataset.url);
+          paperSearchResults.hidden = true;
+          paperSearch.value = '';
+        });
+      });
+    }
+    paperSearchResults.hidden = false;
+  } catch (err) { if (err.name !== 'AbortError') console.error(err); }
+}
+paperSearch.addEventListener('input', () => {
+  const q = paperSearch.value.trim();
+  clearTimeout(searchTimer);
+  if (!q) { paperSearchResults.hidden = true; paperSearchResults.innerHTML = ''; return; }
+  paperSearchResults.innerHTML = '<div class="paper-search-empty">搜尋中…</div>';
+  paperSearchResults.hidden = false;
+  searchTimer = setTimeout(() => runSearch(q), 180);
+});
+paperSearch.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { paperSearch.value = ''; paperSearchResults.hidden = true; }
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('.paper-search')) paperSearchResults.hidden = true;
+});
 
 window.addEventListener('favorites:changed', renderClippings);
 window.addEventListener('storage', e => {

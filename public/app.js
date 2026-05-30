@@ -4,8 +4,6 @@ const sideNavEl = document.getElementById('sideNav');
 const statusEl = document.getElementById('status');
 const favCountEl = document.getElementById('favCount');
 const refreshBtn = document.getElementById('refreshBtn');
-const topSearchInput = document.getElementById('topSearch');
-const topSearchResults = document.getElementById('topSearchResults');
 
 const BIAS_WORDS = (window.BIAS_WORDS || []).slice().sort((a, b) => b.length - a.length);
 const HEART_PATH = 'M12 21s-7-4.6-7-10.3A4.7 4.7 0 0 1 9.7 6c1.6 0 3 .8 3.8 2 .8-1.2 2.2-2 3.8-2A4.7 4.7 0 0 1 22 10.7C22 16.4 12 21 12 21z';
@@ -403,52 +401,6 @@ window.addEventListener('resize', () => {
       loadCategories();
     }
   }, 250);
-});
-
-// ===== top search (全站搜尋) =====
-let searchTimer = null;
-let searchAbort = null;
-async function runTopSearch(q) {
-  if (searchAbort) searchAbort.abort();
-  searchAbort = new AbortController();
-  try {
-    const r = await fetch(`/api/search?q=${encodeURIComponent(q)}&limit=40`, { signal: searchAbort.signal });
-    const { items = [] } = await r.json();
-    if (items.length === 0) {
-      topSearchResults.innerHTML = `<div class="top-search-empty">沒有符合「${escapeHTML(q)}」的標題</div>`;
-    } else {
-      topSearchResults.innerHTML = `
-        <div class="top-search-count">找到 ${items.length} 則</div>
-        ${items.map(it => `
-          <div class="top-search-result" data-id="${it.id}" data-url="${escapeHTML(it.url)}">
-            ${highlightBias(it.title)}
-          </div>
-        `).join('')}
-      `;
-      topSearchResults.querySelectorAll('.top-search-result').forEach(el => {
-        el.addEventListener('click', () => {
-          window.openDrawer(parseInt(el.dataset.id, 10), el.dataset.url);
-          topSearchResults.hidden = true;
-          topSearchInput.value = '';
-        });
-      });
-    }
-    topSearchResults.hidden = false;
-  } catch (err) { if (err.name !== 'AbortError') console.error(err); }
-}
-topSearchInput.addEventListener('input', () => {
-  const q = topSearchInput.value.trim();
-  clearTimeout(searchTimer);
-  if (!q) { topSearchResults.hidden = true; topSearchResults.innerHTML = ''; return; }
-  topSearchResults.innerHTML = '<div class="top-search-empty">搜尋中…</div>';
-  topSearchResults.hidden = false;
-  searchTimer = setTimeout(() => runTopSearch(q), 180);
-});
-topSearchInput.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { topSearchInput.value = ''; topSearchResults.hidden = true; }
-});
-document.addEventListener('click', e => {
-  if (!e.target.closest('.top-search')) topSearchResults.hidden = true;
 });
 
 updateFavCount();
