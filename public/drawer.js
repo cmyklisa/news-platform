@@ -10,7 +10,6 @@
     pchome:    'PChome 新聞',
   };
   const BIAS_WORDS = (window.BIAS_WORDS || []).slice().sort((a, b) => b.length - a.length);
-  const HEART_PATH = 'M12 21s-7-4.6-7-10.3A4.7 4.7 0 0 1 9.7 6c1.6 0 3 .8 3.8 2 .8-1.2 2.2-2 3.8-2A4.7 4.7 0 0 1 22 10.7C22 16.4 12 21 12 21z';
 
   function escapeHTML(s) {
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -45,9 +44,6 @@
           <span class="drawer-time" id="drawerTime" hidden></span>
         </div>
         <div class="drawer-head-actions">
-          <button class="drawer-fav" type="button" aria-label="收藏">
-            <svg viewBox="0 0 24 24" width="14" height="14"><path d="${HEART_PATH}" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-          </button>
           <button class="drawer-x" type="button" aria-label="關閉">✕</button>
         </div>
       </header>
@@ -75,7 +71,6 @@
   const elOthersCount = root.querySelector('#drawerOthersCount');
   const elOthersList = root.querySelector('#drawerOthersList');
   const elPrimary = root.querySelector('#drawerPrimary');
-  const elFavBtn = root.querySelector('.drawer-fav');
   let currentHeadline = null;
 
   function close() {
@@ -88,24 +83,6 @@
   window.addEventListener('keydown', e => {
     if (e.key === 'Escape' && root.classList.contains('open')) close();
   });
-
-  function syncFavBtn() {
-    if (!currentHeadline) return;
-    const fav = window.Favorites && window.Favorites.has(currentHeadline.url);
-    elFavBtn.classList.toggle('on', !!fav);
-    const path = elFavBtn.querySelector('svg path');
-    if (path) path.setAttribute('fill', fav ? 'currentColor' : 'none');
-  }
-  elFavBtn.addEventListener('click', () => {
-    if (!currentHeadline || !window.Favorites) return;
-    window.Favorites.toggle({
-      id: currentHeadline.id,
-      url: currentHeadline.url,
-      title: currentHeadline.title,
-    });
-    syncFavBtn();
-  });
-  window.addEventListener('favorites:changed', syncFavBtn);
 
   async function open(id, fallbackUrl) {
     currentHeadline = null;
@@ -168,7 +145,6 @@
       } else {
         elOthers.hidden = true;
       }
-      syncFavBtn();
     } catch (err) {
       elTitle.textContent = '載入失敗';
       elSummary.textContent = (err && err.message) || '無法取得這則新聞的詳細資料。';

@@ -2,12 +2,9 @@
 const pagesEl = document.getElementById('pages');
 const sideNavEl = document.getElementById('topNav');
 const statusEl = document.getElementById('status');
-const favCountEl = document.getElementById('favCount');
 const refreshBtn = null; // 已移除按鈕，autorefresh 每 5 分鐘照跑
 
 const BIAS_WORDS = (window.BIAS_WORDS || []).slice().sort((a, b) => b.length - a.length);
-const HEART_PATH = 'M12 21s-7-4.6-7-10.3A4.7 4.7 0 0 1 9.7 6c1.6 0 3 .8 3.8 2 .8-1.2 2.2-2 3.8-2A4.7 4.7 0 0 1 22 10.7C22 16.4 12 21 12 21z';
-
 const SIZE_POOL = [
   ...Array(6).fill('size-l'),
   ...Array(9).fill('size-m'),
@@ -49,8 +46,6 @@ function formatTime(ms) {
   const d = new Date(ms);
   return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
-function updateFavCount() { favCountEl.textContent = window.Favorites.count(); }
-
 // 簡易 toast 通知
 let toastTimer = null;
 function showToast(msg) {
@@ -78,72 +73,10 @@ function buildBrick(item) {
   a.style.setProperty('--tcolor', pickTitleColor());
   if (item.cluster_size != null) a.dataset.clusterSize = item.cluster_size;
 
-  const isFav = window.Favorites.has(item.url);
-  if (isFav) a.classList.add('favored');
+  a.innerHTML = `<span class="brick-text">${highlightBias(item.title)}</span>`;
 
-  a.innerHTML = `
-    <span class="brick-text">${highlightBias(item.title)}</span>
-    <button class="fav-btn" type="button" aria-label="收藏" data-fav>
-      <svg viewBox="0 0 24 24" pointer-events="none"><path d="${HEART_PATH}" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"/></svg>
-    </button>
-  `;
-
-  const favBtn = a.querySelector('.fav-btn');
-  const doToggleFav = () => {
-    try {
-      const nowFav = window.Favorites.toggle({ id: item.id, url: item.url, title: item.title });
-      document.querySelectorAll(`.brick[data-url="${CSS.escape(item.url)}"]`).forEach(el => {
-        el.classList.toggle('favored', nowFav);
-        const path = el.querySelector('.fav-btn svg path');
-        if (path) path.setAttribute('fill', nowFav ? 'currentColor' : 'none');
-      });
-      updateFavCount();
-      showToast(nowFav ? '✓ 已加入新聞筆記' : '已從新聞筆記移除');
-      a.classList.add('just-saved');
-      setTimeout(() => a.classList.remove('just-saved'), 700);
-    } catch (err) {
-      showToast('收藏失敗: ' + (err && err.message || err));
-    }
-  };
-  // 多重攔截：pointerdown/mousedown/touchstart 都先 stopPropagation
-  ['pointerdown','mousedown','touchstart'].forEach(ev =>
-    favBtn.addEventListener(ev, e => { e.stopPropagation(); }, { passive: true })
-  );
-  favBtn.addEventListener('click', e => {
-    e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
-    doToggleFav();
-  });
-
-  // mobile long-press 顯示愛心提示
-  let pressTimer = null;
-  let startX = 0, startY = 0;
-  a.addEventListener('touchstart', e => {
-    if (e.target.closest('[data-fav]')) return;
-    if (e.touches[0]) { startX = e.touches[0].clientX; startY = e.touches[0].clientY; }
-    pressTimer = setTimeout(() => {
-      a.classList.add('show-fav');
-      if (navigator.vibrate) navigator.vibrate(15);
-    }, 550);
-  }, { passive: true });
-  a.addEventListener('touchmove', e => {
-    if (!e.touches[0]) return;
-    const dx = e.touches[0].clientX - startX, dy = e.touches[0].clientY - startY;
-    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) clearTimeout(pressTimer);
-  }, { passive: true });
-  a.addEventListener('touchend', () => {
-    clearTimeout(pressTimer);
-    if (a.classList.contains('show-fav')) {
-      a.dataset.suppressClick = '1';
-      setTimeout(() => a.classList.remove('show-fav'), 5000);
-    }
-  });
-
-  // brick 本體點擊：開抽屜或聚寶盆；cmd/ctrl-click 直開新分頁
+  // brick 點擊：開抽屜或聚寶盆；cmd/ctrl-click 直開新分頁
   a.addEventListener('click', e => {
-    if (e.target.closest('[data-fav]')) return;          // 點到愛心區不算
-    if (a.dataset.suppressClick === '1') { a.dataset.suppressClick = '0'; return; }
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) {
       window.open(item.url, '_blank', 'noopener');
       return;
@@ -153,7 +86,6 @@ function buildBrick(item) {
   });
   // 鍵盤無障礙：Enter / Space 等同 click
   a.addEventListener('keydown', e => {
-    if (e.target.closest('[data-fav]')) return;
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       if (item.cluster_size && item.cluster_size > 1) openRadial(item);
@@ -483,18 +415,6 @@ window.addEventListener('keydown', e => {
   else        pagesEl.scrollTo({ top:  next * h, behavior: 'smooth' });
 });
 
-window.addEventListener('favorites:changed', updateFavCount);
-window.addEventListener('storage', e => {
-  if (e.key === 'tw-news-favorites') {
-    updateFavCount();
-    document.querySelectorAll('.brick').forEach(t => {
-      const fav = window.Favorites.has(t.dataset.url);
-      t.classList.toggle('favored', fav);
-      const path = t.querySelector('.fav-btn svg path');
-      if (path) path.setAttribute('fill', fav ? 'currentColor' : 'none');
-    });
-  }
-});
 
 let resizeTimer = null;
 let lastIsMobile = isMobile();
@@ -508,6 +428,5 @@ window.addEventListener('resize', () => {
   }, 250);
 });
 
-updateFavCount();
 loadCategories();
 setInterval(loadCategories, 5 * 60 * 1000);
