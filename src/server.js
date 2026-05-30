@@ -3,7 +3,7 @@ const express = require('express');
 const cron = require('node-cron');
 const { db, stmts, dateKeyFromMs } = require('./db');
 const { fetchAll, backfillCategories } = require('./fetcher');
-const { CATEGORIES } = require('./categorizer');
+const { CATEGORIES, REGIONS, REGION_LABELS } = require('./categorizer');
 const keywords = require('./keywords');
 
 function fetchTitlesForDate(dateKey) {
@@ -76,6 +76,34 @@ app.get('/api/keywords', (req, res) => {
   const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
   const items = keywords.getTrending(fetchTitlesForDate, date, limit);
   res.json({ date, items });
+});
+
+// 天氣頁：取出 weather 類別標題；可按區域過濾
+app.get('/api/weather', (req, res) => {
+  const region = (req.query.region || 'all').trim();
+  const date = req.query.date || dateKeyFromMs(Date.now());
+  const limit = Math.min(parseInt(req.query.limit, 10) || 60, 200);
+  const all = db.prepare(
+    `SELECT id, url, title, source, published_at, summary
+     FROM headlines
+     WHERE category = 'weather' AND date_key = ?
+     ORDER BY published_at DESC
+     LIMIT 500`
+  ).all(date);
+  let items = all;
+  if (region !== 'all' && REGIONS[region]) {
+    const kw = REGIONS[region];
+    items = all.filter(h => kw.some(k => h.title.includes(k) || (h.summary || '').includes(k)));
+  }
+  res.json({
+    region,
+    region_label: REGION_LABELS[region] || region,
+    date,
+    items: items.slice(0, limit),
+    available_regions: ['all', ...Object.keys(REGIONS)].map(r => ({
+      code: r, label: REGION_LABELS[r] || r,
+    })),
+  });
 });
 
 // 任意關鍵字搜尋（最愛頁搜尋框用）

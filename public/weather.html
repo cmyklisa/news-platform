@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>天氣 · 台灣新聞即時情報站</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="weather">
+  <header class="topbar">
+    <a class="back-link" href="/">
+      <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M15.5 4l-8 8 8 8 1.5-1.5L10.5 12l6.5-6.5z"/></svg>
+      <span>回首頁</span>
+    </a>
+    <h1 class="topbar-title">天氣 · 颱風 · 地震 · 預報</h1>
+    <span id="status" class="status"></span>
+  </header>
+
+  <main class="weather-main">
+    <nav class="region-tabs" id="regionTabs" aria-label="選擇地區"></nav>
+    <section class="weather-list" id="weatherList">
+      <div class="empty">載入中…</div>
+    </section>
+  </main>
+
+  <script src="/biasWords.js"></script>
+  <script src="/favorites-store.js"></script>
+  <script src="/drawer.js"></script>
+  <script src="/weather.js"></script>
+</body>
+</html>
