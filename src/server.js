@@ -184,7 +184,7 @@ app.get('/api/health', (req, res) => {
 
 // 一次回傳 6 個類別的最新標題與今日總數，給主頁橫向滑動軸用
 app.get('/api/categories', (req, res) => {
-  const perCat = Math.min(parseInt(req.query.limit, 10) || 60, 200);
+  const perCat = Math.min(parseInt(req.query.limit, 10) || 60, 500);
   const today = dateKeyFromMs(Date.now());
   const countMap = new Map(
     stmts.categoryCountsToday.all(today).map(r => [r.category, r.total])

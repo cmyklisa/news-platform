@@ -43,73 +43,87 @@
     </header>
     <div id="clippings" class="clippings"></div>
 
-    <!-- 動態主播人偶 -->
+    <!-- 動態主播人偶（chibi 可愛版） -->
+    <div class="anchor-bubble" id="anchorBubble" aria-hidden="true"></div>
     <div class="anchor-mascot" aria-hidden="true" title="今日主播">
-      <svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
+      <svg viewBox="0 0 130 170" xmlns="http://www.w3.org/2000/svg">
         <!-- 背景棚台 -->
-        <rect x="6" y="118" width="108" height="38" fill="#2b2620" rx="3" />
-        <rect x="6" y="118" width="108" height="6" fill="#1a1612" rx="2" />
-        <text x="60" y="142" text-anchor="middle" font-family="Georgia, serif"
-              font-size="9" font-weight="700" fill="#d4b27a" letter-spacing="2">DAILY YOU</text>
-        <text x="60" y="153" text-anchor="middle" font-family="Georgia, serif"
+        <rect x="6" y="130" width="118" height="38" fill="#2b2620" rx="4" />
+        <rect x="6" y="130" width="118" height="6" fill="#1a1612" rx="2" />
+        <text x="65" y="153" text-anchor="middle" font-family="Georgia, serif"
+              font-size="10" font-weight="700" fill="#d4b27a" letter-spacing="2">DAILY YOU</text>
+        <text x="65" y="164" text-anchor="middle" font-family="Georgia, serif"
               font-size="6" fill="#8a7860" letter-spacing="1">BREAKING NEWS</text>
 
-        <!-- 主播身體（西裝 + 領帶） -->
+        <!-- 身體（小一點） -->
         <g class="anchor-body">
-          <!-- 西裝外套 -->
-          <path d="M 30 110 L 50 95 L 70 95 L 90 110 L 90 130 L 30 130 Z" fill="#2b2620" />
-          <!-- 襯衫 -->
-          <polygon points="50,95 60,118 70,95 65,95 60,108 55,95" fill="#f0ebe0" />
-          <!-- 領帶 -->
-          <polygon points="58,98 62,98 64,108 60,124 56,108" fill="#b04a2f" />
-          <polygon points="56,108 64,108 60,113" fill="#7a2f1c" />
+          <!-- 西裝（圓肩） -->
+          <path d="M 38 130 Q 40 116 50 112 L 80 112 Q 90 116 92 130 L 92 138 L 38 138 Z" fill="#3a3a4a" />
+          <!-- 領片 -->
+          <polygon points="50,112 65,128 80,112 75,112 65,122 55,112" fill="#f0ebe0" />
+          <!-- 領結 -->
+          <polygon points="58,118 62,116 62,122 58,122" fill="#ff6b6b" />
+          <polygon points="62,116 66,118 66,122 62,122" fill="#ff6b6b" />
+          <circle cx="62" cy="119" r="1.2" fill="#c54040" />
         </g>
 
-        <!-- 主播頭 -->
+        <!-- 大頭 -->
         <g class="anchor-head">
           <!-- 頸 -->
-          <rect x="55" y="85" width="10" height="14" fill="#d4a87a" />
-          <!-- 臉 -->
-          <ellipse cx="60" cy="60" rx="20" ry="24" fill="#e6c19a" />
-          <!-- 頭髮 -->
-          <path d="M 40 56 Q 40 32 60 32 Q 80 32 80 56 L 80 48 Q 70 38 60 40 Q 50 42 40 48 Z"
-                fill="#3a2820" />
-          <!-- 鬢角 -->
-          <path d="M 40 56 L 40 68 L 44 64 Z" fill="#3a2820" />
-          <path d="M 80 56 L 80 68 L 76 64 Z" fill="#3a2820" />
+          <rect x="60" y="104" width="10" height="10" fill="#f7d5b0" />
+          <!-- 圓臉 -->
+          <circle cx="65" cy="68" r="32" fill="#fce0c4" />
+          <!-- 頭髮（蓬鬆瀏海） -->
+          <path d="M 33 64 Q 33 30 65 30 Q 97 30 97 64
+                   Q 95 48 86 44 Q 78 52 70 48 Q 60 52 50 48 Q 36 48 33 64 Z"
+                fill="#4a2e22" />
+          <!-- 瀏海撮一搓 -->
+          <path d="M 50 38 Q 55 50 62 42" fill="none" stroke="#4a2e22" stroke-width="3" stroke-linecap="round" />
 
-          <!-- 眉 -->
-          <rect x="49" y="55" width="7" height="2" fill="#2a1d15" rx="1" />
-          <rect x="64" y="55" width="7" height="2" fill="#2a1d15" rx="1" />
+          <!-- 腮紅 -->
+          <ellipse cx="44" cy="78" rx="7" ry="4" fill="#ff9eab" opacity="0.55" />
+          <ellipse cx="86" cy="78" rx="7" ry="4" fill="#ff9eab" opacity="0.55" />
 
-          <!-- 眼睛（會眨） -->
+          <!-- 大眼睛 -->
           <g class="anchor-eyes">
-            <ellipse cx="52" cy="62" rx="2.6" ry="2.4" fill="#1a1612" />
-            <ellipse cx="68" cy="62" rx="2.6" ry="2.4" fill="#1a1612" />
-            <!-- 高光 -->
-            <circle cx="53" cy="61" r="0.7" fill="#fff" />
-            <circle cx="69" cy="61" r="0.7" fill="#fff" />
+            <ellipse cx="52" cy="68" rx="6" ry="7.5" fill="#1a1612" />
+            <ellipse cx="78" cy="68" rx="6" ry="7.5" fill="#1a1612" />
+            <!-- 大高光 -->
+            <ellipse cx="54" cy="65" rx="2.4" ry="2.8" fill="#fff" />
+            <ellipse cx="80" cy="65" rx="2.4" ry="2.8" fill="#fff" />
+            <!-- 小高光 -->
+            <circle cx="50" cy="72" r="1" fill="#fff" opacity="0.7" />
+            <circle cx="76" cy="72" r="1" fill="#fff" opacity="0.7" />
           </g>
 
-          <!-- 鼻 -->
-          <path d="M 60 64 L 58 70 L 62 70 Z" fill="#c89876" opacity="0.4" />
+          <!-- 微笑 -->
+          <path class="anchor-mouth"
+                d="M 57 84 Q 65 90 73 84"
+                fill="none" stroke="#7a2f1c" stroke-width="2.4" stroke-linecap="round" />
 
-          <!-- 嘴（會說話） -->
-          <ellipse class="anchor-mouth" cx="60" cy="75" rx="4" ry="1.5" fill="#7a2f1c" />
+          <!-- 耳朵 -->
+          <ellipse cx="33" cy="68" rx="3.2" ry="5" fill="#f7d5b0" />
+          <ellipse cx="97" cy="68" rx="3.2" ry="5" fill="#f7d5b0" />
         </g>
 
-        <!-- 手 / 紙稿 -->
-        <g class="anchor-hands">
-          <rect x="34" y="124" width="52" height="14" fill="#f4ecd8" stroke="#5a4f40" stroke-width="0.8" rx="1" />
-          <line x1="38" y1="128" x2="82" y2="128" stroke="#8a7860" stroke-width="0.5" />
-          <line x1="38" y1="131" x2="78" y2="131" stroke="#8a7860" stroke-width="0.5" />
-          <line x1="38" y1="134" x2="80" y2="134" stroke="#8a7860" stroke-width="0.5" />
+        <!-- 麥克風 -->
+        <g class="anchor-mic">
+          <ellipse cx="65" cy="118" rx="7" ry="6" fill="#2a2a2a" stroke="#1a1a1a" stroke-width="1" />
+          <line x1="60" y1="118" x2="70" y2="118" stroke="#0a0a0a" stroke-width="0.6" />
+          <line x1="60" y1="115" x2="70" y2="115" stroke="#0a0a0a" stroke-width="0.6" />
+          <line x1="60" y1="121" x2="70" y2="121" stroke="#0a0a0a" stroke-width="0.6" />
+          <rect x="63" y="124" width="4" height="10" fill="#3a3a3a" />
+          <!-- 脈動光環 -->
+          <circle cx="65" cy="118" r="7" fill="none" stroke="#ff3030" stroke-width="1.2" opacity="0.7">
+            <animate attributeName="r" values="7;12;7" dur="1.4s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.7;0;0.7" dur="1.4s" repeatCount="indefinite" />
+          </circle>
         </g>
 
         <!-- LIVE 燈 -->
         <g class="anchor-live">
-          <circle cx="100" cy="20" r="5" fill="#ff3030" />
-          <text x="100" y="35" text-anchor="middle" font-family="Georgia, serif"
+          <circle cx="112" cy="22" r="5" fill="#ff3030" />
+          <text x="112" y="37" text-anchor="middle" font-family="Georgia, serif"
                 font-size="6" font-weight="700" fill="#ff3030" letter-spacing="1">LIVE</text>
         </g>
       </svg>

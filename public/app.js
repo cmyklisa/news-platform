@@ -15,8 +15,14 @@ const SIZE_POOL = [
 ];
 
 const isMobile = () => window.innerWidth <= 768;
-const COPIES_DESKTOP = 6;
 const ROWS_DESKTOP = 6;
+// 動態 COPIES：item 多就少複製，item 少就多複製，確保磚牆夠長
+function copyCount(itemCount) {
+  if (isMobile()) return 1;
+  if (itemCount >= 50) return 1;
+  if (itemCount >= 20) return Math.ceil(50 / itemCount);
+  return Math.max(3, Math.ceil(60 / Math.max(itemCount, 1)));
+}
 
 function escapeHTML(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -248,7 +254,8 @@ function buildPage(cat) {
     // 手機：垂直列表，一則一行，rail 內部上下捲動
     for (const it of items) rail.appendChild(buildBrick(it));
   } else {
-    // 桌機：6 排磚牆 + 重複 COPIES 次，rail 內部左右滑
+    // 桌機：6 排磚牆，依 item 數量動態決定重複次數
+    const copies = copyCount(items.length);
     const rowEls = [];
     for (let r = 0; r < ROWS_DESKTOP; r++) {
       const row = document.createElement('div');
@@ -257,7 +264,7 @@ function buildPage(cat) {
       rowEls.push(row);
     }
     let idx = 0;
-    for (let c = 0; c < COPIES_DESKTOP; c++) {
+    for (let c = 0; c < copies; c++) {
       for (const it of items) {
         rowEls[idx % ROWS_DESKTOP].appendChild(buildBrick(it));
         idx++;
@@ -327,7 +334,7 @@ function setupObserver() {
 // ===== load =====
 function loadCategories() {
   statusEl.textContent = '載入中…';
-  fetch('/api/categories?limit=80')
+  fetch('/api/categories?limit=300')
     .then(r => r.json())
     .then(data => {
       const cats = data.categories || [];

@@ -98,18 +98,51 @@ a { color: inherit; text-decoration: none; }
 .controls button.muted { color: var(--muted); }
 
 .fav-link {
-  display: inline-flex; align-items: center; gap: 5px;
+  display: inline-flex; align-items: center; gap: 6px;
   background: rgba(28,31,38,0.85); border: 1px solid var(--line);
-  padding: 4px 9px; border-radius: 999px; color: var(--fg);
-  transition: border-color .15s ease, color .15s ease;
+  padding: 5px 12px; border-radius: 999px; color: var(--fg);
+  transition: all .18s ease;
   backdrop-filter: blur(8px);
+  font-family: var(--serif); font-weight: 700; letter-spacing: 1px;
 }
 .fav-link:hover { border-color: var(--fav); color: var(--fav); }
 .fav-link svg { color: var(--fav); }
+.fav-link .fav-label { font-size: 13px; }
+
+/* 主推樣式：填色 + 較大 + 微脈動 */
+.fav-link.primary {
+  background: linear-gradient(135deg, #ff4d6d 0%, #ff7a40 100%);
+  border-color: #ff4d6d;
+  color: #fff;
+  padding: 6px 14px;
+  box-shadow: 0 4px 14px rgba(255,77,109,0.35), inset 0 1px 0 rgba(255,255,255,0.15);
+  animation: fav-pulse 2.6s ease-in-out infinite;
+}
+.fav-link.primary svg { color: #fff; }
+.fav-link.primary:hover {
+  transform: translateY(-1px) scale(1.03);
+  box-shadow: 0 8px 22px rgba(255,77,109,0.5), inset 0 1px 0 rgba(255,255,255,0.2);
+  border-color: #fff;
+  color: #fff;
+  animation: none;
+}
+.fav-link.primary .badge-count {
+  background: rgba(255,255,255,0.95); color: #b03250;
+  font-weight: 800;
+}
+@keyframes fav-pulse {
+  0%, 100% { box-shadow: 0 4px 14px rgba(255,77,109,0.35), inset 0 1px 0 rgba(255,255,255,0.15); }
+  50%      { box-shadow: 0 4px 22px rgba(255,77,109,0.6), inset 0 1px 0 rgba(255,255,255,0.2); }
+}
+
 .badge-count {
   background: var(--fav); color: #fff; font-size: 10px;
-  padding: 0 6px; border-radius: 999px; min-width: 16px; text-align: center;
+  padding: 0 7px; border-radius: 999px; min-width: 18px; text-align: center;
   font-weight: 700; line-height: 16px;
+}
+@media (max-width: 768px) {
+  .fav-link.primary { padding: 5px 10px; }
+  .fav-link.primary .fav-label { font-size: 12px; }
 }
 .floating-status {
   position: fixed; bottom: 12px; right: 16px; z-index: 30;
@@ -466,7 +499,6 @@ a { color: inherit; text-decoration: none; }
   .floating-top { padding: 8px 12px; gap: 8px; flex-wrap: wrap; z-index: 50; }
   .brand h1 { font-size: 14px; letter-spacing: 1px; }
   .controls button { padding: 4px 8px; font-size: 13px; }
-  .fav-link span:not(.badge-count) { display: none; }
   .floating-status { display: none; }
 }
 
@@ -806,16 +838,11 @@ body.fav .status { color: #8a8068; font-size: 11px; }
 }
 .masthead-bottom .dot-sep { color: #8a7860; }
 
+/* 外層 container（block 排版）；columns 套在 .issue-clippings */
 .clippings {
-  column-count: 4;
-  column-gap: 36px;
-  column-rule: 1px solid rgba(120,100,70,0.35);
   margin: 18px auto 0;
   max-width: 1500px;
 }
-@media (max-width: 1400px) { .clippings { column-count: 3; } }
-@media (max-width: 1000px) { .clippings { column-count: 2; } }
-@media (max-width: 680px)  { .clippings { column-count: 1; } }
 
 .clip {
   break-inside: avoid;
@@ -902,41 +929,41 @@ body.fav .status { color: #8a8068; font-size: 11px; }
   font-family: var(--sans);
 }
 
-/* ===== anchor mascot ===== */
+/* ===== anchor mascot (chibi 可愛版) ===== */
 .anchor-mascot {
-  position: fixed; bottom: 18px; right: 24px;
-  width: 110px; height: 145px;
+  position: fixed; bottom: 16px; right: 20px;
+  width: 130px; height: 170px;
   z-index: 10; pointer-events: none;
-  filter: drop-shadow(0 6px 12px rgba(0,0,0,0.35));
+  filter: drop-shadow(0 6px 14px rgba(0,0,0,0.4));
   animation: anchor-bob 2.6s ease-in-out infinite;
 }
 @keyframes anchor-bob {
   0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-4px); }
+  50%      { transform: translateY(-5px); }
 }
 .anchor-mascot .anchor-head {
-  transform-origin: 60px 95px;
-  animation: anchor-nod 4.2s ease-in-out infinite;
+  transform-origin: 65px 100px;
+  animation: anchor-nod 3.8s ease-in-out infinite;
 }
 @keyframes anchor-nod {
-  0%, 92%, 100% { transform: rotate(0deg); }
-  46%           { transform: rotate(-2deg); }
+  0%, 88%, 100% { transform: rotate(0deg); }
+  44%           { transform: rotate(-3deg); }
 }
 .anchor-mascot .anchor-eyes {
-  transform-origin: 60px 62px;
-  animation: anchor-blink 4.8s infinite;
+  transform-origin: 65px 68px;
+  animation: anchor-blink 4.6s infinite;
 }
 @keyframes anchor-blink {
-  0%, 92%, 96%, 100% { transform: scaleY(1); }
-  94%                { transform: scaleY(0.1); }
+  0%, 90%, 96%, 100% { transform: scaleY(1); }
+  93%                { transform: scaleY(0.1); }
 }
 .anchor-mascot .anchor-mouth {
-  transform-origin: 60px 75px;
-  animation: anchor-talk 0.36s ease-in-out infinite;
+  transform-origin: 65px 86px;
+  animation: anchor-smile-pop 5s ease-in-out infinite;
 }
-@keyframes anchor-talk {
-  0%, 100% { transform: scaleY(0.4); }
-  50%      { transform: scaleY(1.6); }
+@keyframes anchor-smile-pop {
+  0%, 70%, 100% { transform: scale(1); }
+  82%           { transform: scale(1.15); }
 }
 .anchor-mascot .anchor-live circle {
   animation: live-blink 1.1s ease-in-out infinite;
@@ -945,12 +972,73 @@ body.fav .status { color: #8a8068; font-size: 11px; }
   0%, 100% { opacity: 1; }
   50%      { opacity: 0.3; }
 }
-@media (max-width: 768px) {
-  .anchor-mascot {
-    width: 80px; height: 110px; bottom: 10px; right: 10px;
-  }
+
+/* speech bubble that shows current news title */
+.anchor-bubble {
+  position: fixed; bottom: 150px; right: 160px;
+  z-index: 9; max-width: 320px;
+  background: #fff; color: #1a1612;
+  padding: 12px 16px; border-radius: 14px;
+  font-family: var(--serif); font-size: 14px;
+  font-weight: 700; line-height: 1.45;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.35), 0 1px 0 rgba(255,255,255,0.5) inset;
+  opacity: 0; transform: translateY(6px) scale(.97);
+  transition: opacity .4s ease, transform .4s ease;
+  pointer-events: none;
 }
-@media print { .anchor-mascot { display: none; } }
+.anchor-bubble.show { opacity: 1; transform: translateY(0) scale(1); }
+.anchor-bubble::after {
+  content: ''; position: absolute;
+  right: -10px; bottom: 22px;
+  width: 0; height: 0;
+  border: 8px solid transparent;
+  border-left-color: #fff;
+}
+.anchor-bubble .bias { font-size: 1.15em; font-weight: 900; color: #1a1612; }
+
+@media (max-width: 768px) {
+  .anchor-mascot { width: 86px; height: 112px; bottom: 8px; right: 8px; }
+  .anchor-bubble {
+    bottom: auto; top: 60px; right: 8px; left: 8px;
+    max-width: none; font-size: 13px; padding: 10px 14px;
+  }
+  .anchor-bubble::after { display: none; }
+}
+@media print { .anchor-mascot, .anchor-bubble { display: none; } }
+
+/* ===== past issues (older newspapers below current) ===== */
+.past-issue { margin-top: 28px; }
+.past-masthead { text-align: center; margin: 0 auto 18px; max-width: 1100px; }
+.past-meta {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 10px 12px;
+  font-size: 13px; color: #3a342c; letter-spacing: 2px;
+  font-family: "Noto Serif TC", "STKaiti", "Kaiti TC", serif;
+}
+.past-meta .past-title-l {
+  font-weight: 900; font-size: 16px; color: #1a1612;
+}
+.past-meta .past-date { font-style: italic; }
+.past-meta .past-count {
+  font-size: 11px; color: #6a5e4a;
+  background: rgba(160,140,100,0.15);
+  padding: 2px 8px; border-radius: 3px;
+  letter-spacing: 1px;
+}
+.issue-clippings {
+  column-count: 4;
+  column-gap: 36px;
+  column-rule: 1px solid rgba(120,100,70,0.35);
+}
+@media (max-width: 1400px) { .issue-clippings { column-count: 3; } }
+@media (max-width: 1000px) { .issue-clippings { column-count: 2; } }
+@media (max-width: 680px)  { .issue-clippings { column-count: 1; } }
+
+.paper-end {
+  text-align: center; padding: 40px 20px 20px;
+  font-size: 12px; letter-spacing: 5px; color: #8a7860;
+  font-family: var(--serif);
+}
 
 .empty { color: var(--muted); font-size: 13px; padding: 24px; text-align: center; }
 

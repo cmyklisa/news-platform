@@ -77,6 +77,40 @@ async function loadFullHeadlines(favs) {
   } catch (e) { return new Map(); }
 }
 
+// 把 favs 依儲存日期分群 -> [[dateKey, [favs]], ...] 由新到舊
+function groupFavsByDate(favs) {
+  const groups = new Map();
+  for (const f of favs) {
+    const d = new Date(f.savedAt);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(f);
+  }
+  return [...groups.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+}
+
+function issueNumberFor(date) {
+  return Math.floor((date.getTime() - ISSUE_BASE) / 86400000) + 1;
+}
+
+function weekdayCh(d) {
+  return ['日','一','二','三','四','五','六'][d.getDay()];
+}
+
+function clipsHtml(favs, fullMap) {
+  return favs.map((fav, i) => {
+    const full = fullMap.get(fav.id);
+    const title = (full && full.title) || fav.title;
+    const tier = tierForIndex(i);
+    return `
+      <article class="clip ${tier}" data-url="${escapeHTML(fav.url)}" data-id="${full ? full.id : ''}">
+        <h2 class="clip-title">${window.highlightBiasText(title)}</h2>
+        <button class="clip-rm" type="button" aria-label="取消收藏">×</button>
+      </article>
+    `;
+  }).join('');
+}
+
 async function renderClippings() {
   const favs = window.Favorites.list();
   paperCountEl.textContent = `${favs.length} 則剪報`;
@@ -92,19 +126,39 @@ async function renderClippings() {
   }
 
   const fullMap = await loadFullHeadlines(favs);
+  const grouped = groupFavsByDate(favs);
+  const todayKey = new Date().toISOString().slice(0, 10);
 
-  // 精簡：只呈現標題；hover 才有取消按鈕
-  clippingsEl.innerHTML = favs.map((fav, i) => {
-    const full = fullMap.get(fav.id);
-    const title = (full && full.title) || fav.title;
-    const tier = tierForIndex(i);
-    return `
-      <article class="clip ${tier}" data-url="${escapeHTML(fav.url)}" data-id="${full ? full.id : ''}">
-        <h2 class="clip-title">${window.highlightBiasText(title)}</h2>
-        <button class="clip-rm" type="button" aria-label="取消收藏">×</button>
-      </article>
-    `;
-  }).join('');
+  let html = '';
+  grouped.forEach(([dateKey, items], idx) => {
+    if (idx === 0 && dateKey === todayKey) {
+      // 今天直接用主報頭（已經渲染在 masthead），這裡只放 clippings
+      html += `<div class="issue-clippings">${clipsHtml(items, fullMap)}</div>`;
+    } else {
+      const [y, m, d] = dateKey.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      const issueN = issueNumberFor(dt);
+      html += `
+        <section class="past-issue">
+          <header class="past-masthead">
+            <div class="masthead-rule double"></div>
+            <div class="past-meta">
+              <span class="past-title-l">第 ${issueN.toLocaleString('en-US')} 期</span>
+              <span class="past-date">${y} 年 ${m} 月 ${d} 日　星期${weekdayCh(dt)}</span>
+              <span class="past-count">${items.length} 則剪報</span>
+            </div>
+            <div class="masthead-rule"></div>
+          </header>
+          <div class="issue-clippings">${clipsHtml(items, fullMap)}</div>
+        </section>
+      `;
+    }
+  });
+  if (grouped.length > 1) {
+    html += `<div class="paper-end">— 本報所有歷史 —</div>`;
+  }
+
+  clippingsEl.innerHTML = html;
 
   clippingsEl.querySelectorAll('.clip').forEach(card => {
     const url = card.dataset.url;
@@ -121,6 +175,46 @@ async function renderClippings() {
     });
   });
 }
+
+// ===== 主播語音泡泡：循環顯示今日新聞標題 =====
+const anchorBubble = document.getElementById('anchorBubble');
+let anchorPool = [];
+let anchorIdx = 0;
+let anchorTimer = null;
+
+function cycleAnchor() {
+  if (!anchorPool.length || !anchorBubble) return;
+  const item = anchorPool[anchorIdx % anchorPool.length];
+  anchorBubble.innerHTML = window.highlightBiasText(item.title);
+  anchorBubble.classList.add('show');
+  anchorIdx++;
+  clearTimeout(anchorTimer);
+  anchorTimer = setTimeout(() => {
+    anchorBubble.classList.remove('show');
+    setTimeout(cycleAnchor, 600);
+  }, 5400);
+}
+
+function loadAnchorPool() {
+  fetch('/api/categories?limit=15')
+    .then(r => r.json())
+    .then(data => {
+      const titles = [];
+      for (const c of data.categories || []) {
+        for (const it of c.items || []) titles.push({ title: it.title });
+      }
+      // 洗牌
+      for (let i = titles.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [titles[i], titles[j]] = [titles[j], titles[i]];
+      }
+      anchorPool = titles.slice(0, 40);
+      if (anchorPool.length) cycleAnchor();
+    })
+    .catch(() => {});
+}
+loadAnchorPool();
+setInterval(loadAnchorPool, 10 * 60 * 1000);
 
 // ===== search (今日所有標題) =====
 const paperSearch = document.getElementById('paperSearch');
