@@ -3,9 +3,8 @@ const citiesG = document.getElementById('mapCities');
 const summaryEl = document.getElementById('wxSummary');
 const alertsEl = document.getElementById('wxAlerts');
 const statusEl = document.getElementById('status');
-const popoverEl = document.getElementById('wxPopover');
-const popoverCardEl = document.getElementById('wxPopoverCard');
-const popoverBackdrop = document.getElementById('wxPopoverBackdrop');
+
+let selectedCode = null;  // 當前選中的縣市 code（null = 全台概況）
 
 function escapeHTML(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -54,19 +53,33 @@ function renderMap(cities) {
             font-weight="700" font-family="serif" stroke="#0c0d10" stroke-width="3" paint-order="stroke">${c.name}</text>
       ${popBadge}
     `;
-    g.addEventListener('click', () => openCityDetail(c));
+    g.addEventListener('click', () => selectCity(c));
     citiesG.appendChild(g);
   }
 }
 
-// === 中央大型概況 ===
+// === 中央大型顯示器：根據 selectedCode 顯示全台概況 OR 單一縣市詳情 ===
 function renderSummary(cities) {
   if (!cities.length) return;
+  // 標記選中的縣市
+  if (selectedCode) {
+    citiesG.querySelectorAll('.map-city').forEach(g =>
+      g.classList.toggle('selected', g.dataset.code === selectedCode));
+  } else {
+    citiesG.querySelectorAll('.map-city').forEach(g => g.classList.remove('selected'));
+  }
+
+  if (selectedCode) {
+    const c = cities.find(x => x.code === selectedCode);
+    if (c) { renderCitySummary(c); return; }
+  }
+  renderOverview(cities);
+}
+
+function renderOverview(cities) {
   const main = cities.find(c => c.code === 'TPE') || cities[0];
-  // 平均氣溫
   const temps = cities.map(c => c.temp).filter(t => typeof t === 'number');
   const avg = temps.length ? Math.round(temps.reduce((s,t)=>s+t,0) / temps.length) : null;
-  // 是否多數下雨
   const rainCount = cities.filter(c => ['rain','drizzle','showers','storm'].includes(c.type)).length;
   const stormCount = cities.filter(c => c.type === 'storm').length;
   const isRainy = rainCount >= Math.ceil(cities.length / 3);
@@ -75,8 +88,11 @@ function renderSummary(cities) {
     : isRainy ? cities.find(c => ['rain','showers','drizzle'].includes(c.type))
     : main
   );
-
   summaryEl.innerHTML = `
+    <div class="wx-summary-head">
+      <span class="wx-sel-name">全台概況</span>
+      <span class="wx-sel-hint">點地圖任一縣市查看詳情</span>
+    </div>
     <div class="wx-big">
       <div class="wx-big-icon">${dominant.icon || '⛅'}</div>
       <div class="wx-big-body">
@@ -97,47 +113,52 @@ function renderSummary(cities) {
   `;
 }
 
-// === 點縣市彈出詳情 ===
-function openCityDetail(c) {
-  popoverCardEl.innerHTML = `
-    <button class="wx-popover-x" type="button" aria-label="關閉">✕</button>
-    <div class="wx-pop-head" style="--accent:${c.color}">
-      <div class="wx-pop-icon">${c.icon}</div>
-      <div>
-        <div class="wx-pop-name">${escapeHTML(c.name)}</div>
-        <div class="wx-pop-temp">${c.temp ?? '-'}°C　<small>${escapeHTML(c.label)}</small></div>
+function renderCitySummary(c) {
+  const forecastHtml = (c.forecast || []).map((f, i) => {
+    const d = new Date(f.date);
+    const label = i === 0 ? '今日' : i === 1 ? '明日' : `${d.getMonth()+1}/${d.getDate()}`;
+    return `
+      <div class="wx-day">
+        <div class="wx-day-label">${label} 週${weekdayCh(d)}</div>
+        <div class="wx-day-icon">${f.icon}</div>
+        <div class="wx-day-cond">${escapeHTML(f.label)}</div>
+        <div class="wx-day-temp">${f.tmin ?? '-'}° / <strong>${f.tmax ?? '-'}°</strong></div>
+        ${f.pop != null ? `<div class="wx-day-pop">☂ ${f.pop}%</div>` : ''}
+        ${f.precip != null && f.precip > 0 ? `<div class="wx-day-precip">${f.precip.toFixed(1)}mm</div>` : ''}
+      </div>`;
+  }).join('');
+
+  summaryEl.innerHTML = `
+    <div class="wx-summary-head" style="--accent:${c.color}">
+      <span class="wx-sel-name">📍 ${escapeHTML(c.name)}</span>
+      <button class="wx-back" type="button" id="wxBack">← 全台概況</button>
+    </div>
+    <div class="wx-big">
+      <div class="wx-big-icon">${c.icon}</div>
+      <div class="wx-big-body">
+        <div class="wx-big-temp">${c.temp ?? '-'}<span>°C</span></div>
+        <div class="wx-big-label">${escapeHTML(c.name)}　${escapeHTML(c.label)}</div>
+        <div class="wx-big-sub">即時資料 · 點地圖看其他縣市</div>
       </div>
     </div>
-    <div class="wx-pop-stats">
-      <div><span>濕度</span><strong>${c.humidity ?? '-'}%</strong></div>
-      <div><span>風速</span><strong>${c.wind ?? '-'} km/h</strong></div>
-      <div><span>降雨機率</span><strong>${c.pop != null ? c.pop + '%' : '-'}</strong></div>
+    <div class="wx-detail-grid">
+      <div class="wx-stat"><span class="wx-stat-l">濕度</span><span class="wx-stat-v">${c.humidity ?? '-'}%</span></div>
+      <div class="wx-stat"><span class="wx-stat-l">風速</span><span class="wx-stat-v">${c.wind ?? '-'} km/h</span></div>
+      <div class="wx-stat"><span class="wx-stat-l">降雨機率</span><span class="wx-stat-v">${c.pop != null ? c.pop + '%' : '-'}</span></div>
     </div>
-    <div class="wx-pop-forecast">
-      ${(c.forecast || []).map((f, i) => {
-        const d = new Date(f.date);
-        const label = i === 0 ? '今日' : i === 1 ? '明日' : `${d.getMonth()+1}/${d.getDate()}`;
-        return `
-          <div class="wx-day">
-            <div class="wx-day-label">${label} 週${weekdayCh(d)}</div>
-            <div class="wx-day-icon">${f.icon}</div>
-            <div class="wx-day-cond">${escapeHTML(f.label)}</div>
-            <div class="wx-day-temp">${f.tmin ?? '-'}° / <strong>${f.tmax ?? '-'}°</strong></div>
-            ${f.pop != null ? `<div class="wx-day-pop">☂ ${f.pop}%</div>` : ''}
-            ${f.precip != null && f.precip > 0 ? `<div class="wx-day-precip">${f.precip.toFixed(1)}mm</div>` : ''}
-          </div>
-        `;
-      }).join('')}
-    </div>
+    <div class="wx-pop-forecast" style="margin-top: 16px;">${forecastHtml}</div>
   `;
-  popoverCardEl.querySelector('.wx-popover-x').addEventListener('click', closePopover);
-  popoverEl.hidden = false;
+  const back = summaryEl.querySelector('#wxBack');
+  if (back) back.addEventListener('click', () => {
+    selectedCode = null;
+    renderSummary(CITIES);
+  });
 }
-function closePopover() { popoverEl.hidden = true; }
-popoverBackdrop.addEventListener('click', closePopover);
-window.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && !popoverEl.hidden) closePopover();
-});
+
+function selectCity(c) {
+  selectedCode = c.code;
+  renderSummary(CITIES);
+}
 
 // === 警報卡片（仍用既有 weather 類別新聞） ===
 function detectAlertType(text) {

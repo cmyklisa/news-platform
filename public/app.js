@@ -67,13 +67,12 @@ function showToast(msg) {
   toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
 }
 
-// ===== brick =====
+// ===== brick (改用 div + role=link，避免 <a> 內建 navigation 與 button 競態) =====
 function buildBrick(item) {
-  const a = document.createElement('a');
+  const a = document.createElement('div');
   a.className = `brick ${randomSize()}`;
-  a.href = item.url;
-  a.target = '_blank';
-  a.rel = 'noopener';
+  a.setAttribute('role', 'link');
+  a.setAttribute('tabindex', '0');
   a.dataset.url = item.url;
   a.dataset.id = item.id;
   a.style.setProperty('--tcolor', pickTitleColor());
@@ -84,33 +83,44 @@ function buildBrick(item) {
 
   a.innerHTML = `
     <span class="brick-text">${highlightBias(item.title)}</span>
-    <button class="fav-btn" type="button" aria-label="收藏">
-      <svg viewBox="0 0 24 24"><path d="${HEART_PATH}" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"/></svg>
+    <button class="fav-btn" type="button" aria-label="收藏" data-fav>
+      <svg viewBox="0 0 24 24" pointer-events="none"><path d="${HEART_PATH}" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"/></svg>
     </button>
   `;
 
   const favBtn = a.querySelector('.fav-btn');
-  const doToggleFav = (ev) => {
-    if (ev) { ev.preventDefault(); ev.stopPropagation(); }
-    const nowFav = window.Favorites.toggle({ id: item.id, url: item.url, title: item.title });
-    document.querySelectorAll(`.brick[data-url="${CSS.escape(item.url)}"]`).forEach(el => {
-      el.classList.toggle('favored', nowFav);
-      const path = el.querySelector('.fav-btn svg path');
-      if (path) path.setAttribute('fill', nowFav ? 'currentColor' : 'none');
-    });
-    updateFavCount();
-    showToast(nowFav ? '✓ 已加入新聞筆記' : '已從新聞筆記移除');
-    a.classList.add('just-saved');
-    setTimeout(() => a.classList.remove('just-saved'), 700);
+  const doToggleFav = () => {
+    try {
+      const nowFav = window.Favorites.toggle({ id: item.id, url: item.url, title: item.title });
+      document.querySelectorAll(`.brick[data-url="${CSS.escape(item.url)}"]`).forEach(el => {
+        el.classList.toggle('favored', nowFav);
+        const path = el.querySelector('.fav-btn svg path');
+        if (path) path.setAttribute('fill', nowFav ? 'currentColor' : 'none');
+      });
+      updateFavCount();
+      showToast(nowFav ? '✓ 已加入新聞筆記' : '已從新聞筆記移除');
+      a.classList.add('just-saved');
+      setTimeout(() => a.classList.remove('just-saved'), 700);
+    } catch (err) {
+      showToast('收藏失敗: ' + (err && err.message || err));
+    }
   };
-  // pointerdown 早於 click，避免 touch 競態（手機長按/輕點都能正確分流）
-  favBtn.addEventListener('pointerdown', e => e.stopPropagation());
-  favBtn.addEventListener('click', doToggleFav);
+  // 多重攔截：pointerdown/mousedown/touchstart 都先 stopPropagation
+  ['pointerdown','mousedown','touchstart'].forEach(ev =>
+    favBtn.addEventListener(ev, e => { e.stopPropagation(); }, { passive: true })
+  );
+  favBtn.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    doToggleFav();
+  });
 
-  // mobile long-press shows heart
+  // mobile long-press 顯示愛心提示
   let pressTimer = null;
   let startX = 0, startY = 0;
   a.addEventListener('touchstart', e => {
+    if (e.target.closest('[data-fav]')) return;
     if (e.touches[0]) { startX = e.touches[0].clientX; startY = e.touches[0].clientY; }
     pressTimer = setTimeout(() => {
       a.classList.add('show-fav');
@@ -130,14 +140,25 @@ function buildBrick(item) {
     }
   });
 
+  // brick 本體點擊：開抽屜或聚寶盆；cmd/ctrl-click 直開新分頁
   a.addEventListener('click', e => {
-    if (a.dataset.suppressClick === '1') {
-      e.preventDefault(); a.dataset.suppressClick = '0'; return;
+    if (e.target.closest('[data-fav]')) return;          // 點到愛心區不算
+    if (a.dataset.suppressClick === '1') { a.dataset.suppressClick = '0'; return; }
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) {
+      window.open(item.url, '_blank', 'noopener');
+      return;
     }
-    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
-    e.preventDefault();
     if (item.cluster_size && item.cluster_size > 1) openRadial(item);
     else window.openDrawer(item.id, item.url);
+  });
+  // 鍵盤無障礙：Enter / Space 等同 click
+  a.addEventListener('keydown', e => {
+    if (e.target.closest('[data-fav]')) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if (item.cluster_size && item.cluster_size > 1) openRadial(item);
+      else window.openDrawer(item.id, item.url);
+    }
   });
   return a;
 }

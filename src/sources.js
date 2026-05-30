@@ -6,6 +6,14 @@ module.exports = [
   { name: 'newtalk',      url: 'https://newtalk.tw/rss/all' },
   { name: 'pchome',       url: 'https://news.pchome.com.tw/rss', parser: 'pchome' },
 
+  // 國際 / 美國 / 大陸 / 政策 — Google News topic 來源
+  { name: 'gn_world',  url: 'https://news.google.com/rss/search?q=%E5%9C%8B%E9%9A%9B+OR+%E6%97%A5%E6%9C%AC+OR+%E9%9F%93%E5%9C%8B+OR+%E6%AD%90%E7%9B%9F+OR+%E4%BF%84%E7%BE%85%E6%96%AF+OR+%E7%83%8F%E5%85%8B%E8%98%AD+OR+%E4%BB%A5%E8%89%B2%E5%88%97&hl=zh-TW&gl=TW&ceid=TW:zh-Hant' },
+  { name: 'gn_usa',    url: 'https://news.google.com/rss/search?q=%E7%BE%8E%E5%9C%8B+OR+%E5%B7%9D%E6%99%AE+OR+%E7%99%BD%E5%AE%AE+OR+%E8%81%AF%E6%BA%96%E6%9C%83+OR+%E8%8F%AF%E5%BA%9C+OR+FBI&hl=zh-TW&gl=TW&ceid=TW:zh-Hant' },
+  { name: 'gn_cross',  url: 'https://news.google.com/rss/search?q=%E5%85%A9%E5%B2%B8+OR+%E5%A4%A7%E9%99%B8+OR+%E5%9C%8B%E5%8F%B0%E8%BE%A6+OR+%E5%85%B1%E8%BB%8D+OR+%E7%BF%92%E8%BF%91%E5%B9%B3&hl=zh-TW&gl=TW&ceid=TW:zh-Hant' },
+  { name: 'gn_policy', url: 'https://news.google.com/rss/search?q=%E8%A1%8C%E6%94%BF%E9%99%A2+OR+%E7%AB%8B%E6%B3%95%E9%99%A2+OR+%E6%94%BF%E7%AD%96+OR+%E4%BF%AE%E6%B3%95+OR+%E9%A0%90%E7%AE%97+OR+%E6%B3%95%E6%A1%88&hl=zh-TW&gl=TW&ceid=TW:zh-Hant' },
+  // BBC 中文（國際視角）
+  { name: 'bbc_zh',    url: 'https://feeds.bbci.co.uk/zhongwen/trad/rss.xml' },
+
   // 美食/餐飲相關
   { name: 'newsmarket',   url: 'https://www.newsmarket.com.tw/feed/' },
   { name: 'google_food',  url: 'https://news.google.com/rss/search?q=%E7%BE%8E%E9%A3%9F+OR+%E9%A4%90%E5%BB%B3+OR+%E9%A3%9F%E5%AE%89&hl=zh-TW&gl=TW&ceid=TW:zh-Hant' },

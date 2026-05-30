@@ -1513,8 +1513,34 @@ body.topics .topbar-title {
   background: var(--bg-2);
   border: 1px solid var(--line); border-radius: 12px;
   padding: 22px 26px;
-  display: flex; flex-direction: column; gap: 18px;
+  display: flex; flex-direction: column; gap: 14px;
+  transition: border-color .25s ease;
 }
+.wx-summary-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding-bottom: 10px; border-bottom: 1px dashed var(--line);
+  font-family: var(--sans);
+}
+.wx-sel-name {
+  font-size: 16px; font-weight: 800; letter-spacing: 2px;
+  color: var(--accent, var(--fg));
+}
+.wx-sel-hint {
+  font-size: 11px; color: var(--muted); letter-spacing: 1px;
+}
+.wx-back {
+  background: transparent; border: 1px solid var(--line);
+  color: var(--fg-muted); padding: 4px 10px; border-radius: 999px;
+  cursor: pointer; font-size: 12px; font-family: var(--sans);
+}
+.wx-back:hover { color: var(--fg); border-color: var(--accent); }
+
+.map-city.selected circle {
+  stroke: var(--accent) !important;
+  stroke-width: 3.5 !important;
+  filter: drop-shadow(0 0 8px var(--accent));
+}
+.map-city.selected { animation: none !important; }
 .wx-loading, .wx-summary .empty { color: var(--muted); padding: 60px 20px; text-align: center; }
 .wx-big {
   display: flex; align-items: center; gap: 20px;
@@ -1572,46 +1598,7 @@ body.topics .topbar-title {
 }
 .wx-alert-time { font-size: 11px; color: var(--muted); margin-top: 4px; font-family: var(--sans); }
 
-/* city popover */
-.wx-popover { position: fixed; inset: 0; z-index: 60; }
-.wx-popover[hidden] { display: none !important; }
-.wx-popover-backdrop {
-  position: absolute; inset: 0; background: rgba(0,0,0,0.65);
-  backdrop-filter: blur(4px);
-}
-.wx-popover-card {
-  position: absolute; top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  width: min(420px, 92vw);
-  background: var(--bg-2); color: var(--fg);
-  border: 1px solid var(--line); border-radius: 14px;
-  padding: 22px 24px; box-shadow: 0 16px 50px rgba(0,0,0,0.6);
-  font-family: var(--sans);
-}
-.wx-popover-x {
-  position: absolute; top: 12px; right: 14px;
-  width: 30px; height: 30px; border-radius: 50%;
-  background: transparent; border: 1px solid var(--line);
-  color: var(--muted); cursor: pointer;
-}
-.wx-popover-x:hover { color: var(--fav); border-color: var(--fav); }
-.wx-pop-head {
-  display: flex; align-items: center; gap: 14px; margin-bottom: 16px;
-  padding-bottom: 14px; border-bottom: 1px solid var(--line);
-}
-.wx-pop-icon { font-size: 48px; line-height: 1; }
-.wx-pop-name { font-size: 22px; font-weight: 800; font-family: var(--serif); }
-.wx-pop-temp { font-size: 20px; font-weight: 700; color: var(--accent); margin-top: 4px; font-family: var(--serif); }
-.wx-pop-temp small { color: var(--fg-muted); font-size: 13px; font-weight: 500; margin-left: 6px; }
-.wx-pop-stats {
-  display: flex; gap: 16px; margin-bottom: 16px;
-}
-.wx-pop-stats > div {
-  flex: 1; background: var(--bg-3); padding: 10px 12px; border-radius: 8px;
-  display: flex; flex-direction: column; gap: 4px;
-}
-.wx-pop-stats span { font-size: 10px; color: var(--muted); letter-spacing: 1.5px; }
-.wx-pop-stats strong { font-size: 16px; color: var(--fg); font-family: var(--serif); }
+/* 3-day forecast grid (used inline in summary) */
 .wx-pop-forecast {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
 }
