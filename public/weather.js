@@ -88,6 +88,9 @@ function renderList(data) {
   }
 
   const banner = buildAlertBanner(items);
+  const fallbackNote = data.fallback
+    ? `<div class="region-fallback">「${escapeHTML(data.region_label)}」今日無特定區域氣象新聞，以下顯示全台天氣動態</div>`
+    : '';
 
   const cards = items.map(it => {
     const info = detectType(it.title + ' ' + (it.summary || ''));
@@ -111,7 +114,7 @@ function renderList(data) {
     `;
   }).join('');
 
-  listEl.innerHTML = banner + cards;
+  listEl.innerHTML = fallbackNote + banner + cards;
 
   listEl.querySelectorAll('.weather-card, .alert-card').forEach(card => {
     card.addEventListener('click', () => {

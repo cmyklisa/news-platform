@@ -3,7 +3,7 @@ const express = require('express');
 const cron = require('node-cron');
 const { db, stmts, dateKeyFromMs } = require('./db');
 const { fetchAll, backfillCategories } = require('./fetcher');
-const { CATEGORIES, REGIONS, REGION_LABELS } = require('./categorizer');
+const { CATEGORIES, REGIONS, REGION_LABELS, NATIONWIDE_HINTS } = require('./categorizer');
 const keywords = require('./keywords');
 
 function fetchTitlesForDate(dateKey) {
@@ -90,14 +90,29 @@ app.get('/api/weather', (req, res) => {
      ORDER BY published_at DESC
      LIMIT 500`
   ).all(date);
+
   let items = all;
+  let fallback = false;
   if (region !== 'all' && REGIONS[region]) {
     const kw = REGIONS[region];
-    items = all.filter(h => kw.some(k => h.title.includes(k) || (h.summary || '').includes(k)));
+    // 命中區域地名，或者是全台/地震/颱風等不分區事件
+    items = all.filter(h => {
+      const text = h.title + ' ' + (h.summary || '');
+      if (kw.some(k => text.includes(k))) return true;
+      if (NATIONWIDE_HINTS.some(k => h.title.includes(k))) return true;
+      return false;
+    });
+    // 若還是抓不到，退回顯示全部，並標記 fallback
+    if (items.length === 0) {
+      items = all;
+      fallback = true;
+    }
   }
+
   res.json({
     region,
     region_label: REGION_LABELS[region] || region,
+    fallback,
     date,
     items: items.slice(0, limit),
     available_regions: ['all', ...Object.keys(REGIONS)].map(r => ({
