@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>影音新聞 · 台灣新聞即時情報站</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="videos">
+  <header class="topbar">
+    <a class="back-link" href="/">
+      <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M15.5 4l-8 8 8 8 1.5-1.5L10.5 12l6.5-6.5z"/></svg>
+      <span>回首頁</span>
+    </a>
+    <div class="vid-search">
+      <input id="vidSearch" type="search" placeholder="🔍 搜尋影音標題（關鍵字）…" autocomplete="off" />
+    </div>
+    <span id="status" class="status"></span>
+  </header>
+
+  <main class="videos-main">
+    <div class="vid-meta" id="vidMeta"></div>
+    <div class="vid-grid" id="vidGrid">
+      <div class="empty">載入中…</div>
+    </div>
+  </main>
+
+  <script>
+    window.VIDEO_SOURCE_NAMES = {
+      gn_yt_news:    'YouTube · 新聞',
+      gn_yt_taiwan:  'YouTube · 台灣',
+      gn_yt_politic: 'YouTube · 政治',
+    };
+  </script>
+  <script src="/biasWords.js"></script>
+  <script src="/videos.js"></script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>天氣 · 台灣新聞即時情報站</title>
+  <title>天氣 · 台灣即時氣象</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body class="weather">
@@ -12,16 +12,59 @@
       <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M15.5 4l-8 8 8 8 1.5-1.5L10.5 12l6.5-6.5z"/></svg>
       <span>回首頁</span>
     </a>
-    <h1 class="topbar-title">天氣 · 颱風 · 地震 · 預報</h1>
+    <h1 class="topbar-title">即時氣象</h1>
     <span id="status" class="status"></span>
   </header>
 
-  <main class="weather-main">
-    <nav class="region-tabs" id="regionTabs" aria-label="選擇地區"></nav>
-    <section class="weather-list" id="weatherList">
-      <div class="empty">載入中…</div>
+  <main class="weather-main wx-layout">
+    <section class="wx-hero">
+      <div class="wx-map-wrap">
+        <svg id="twMap" class="tw-map" viewBox="0 0 240 380" xmlns="http://www.w3.org/2000/svg">
+          <!-- 簡化的台灣島輪廓 -->
+          <path d="M 100 30
+                   Q 130 18 145 40
+                   Q 168 70 172 110
+                   Q 175 160 168 210
+                   Q 162 270 132 320
+                   Q 110 345 92 330
+                   Q 60 305 55 250
+                   Q 50 200 60 150
+                   Q 65 90 80 50
+                   Q 90 30 100 30 Z"
+                fill="rgba(40,50,65,0.5)" stroke="#3a4252" stroke-width="1.5" />
+          <!-- 中央山脈線 -->
+          <path d="M 120 60 Q 130 130 128 200 Q 124 270 110 310"
+                fill="none" stroke="rgba(120,160,140,0.25)" stroke-width="2" stroke-dasharray="4 6" />
+          <g id="mapCities"></g>
+        </svg>
+        <div class="wx-legend">
+          <span class="lg lg-sunny">☀️ 晴</span>
+          <span class="lg lg-cloudy">⛅ 多雲</span>
+          <span class="lg lg-overcast">☁️ 陰</span>
+          <span class="lg lg-rain">🌧️ 雨</span>
+          <span class="lg lg-storm">⛈️ 雷雨</span>
+          <span class="lg lg-typhoon">🌀 颱風</span>
+        </div>
+      </div>
+
+      <div class="wx-summary" id="wxSummary">
+        <div class="wx-loading">取得即時氣象中…</div>
+      </div>
+    </section>
+
+    <section class="wx-alerts">
+      <h2 class="wx-alerts-title">⚠️ 颱風 / 地震 / 豪雨等重大警示</h2>
+      <div class="wx-alerts-grid" id="wxAlerts">
+        <div class="empty">載入中…</div>
+      </div>
     </section>
   </main>
+
+  <!-- city detail popover -->
+  <div class="wx-popover" id="wxPopover" hidden>
+    <div class="wx-popover-card" id="wxPopoverCard"></div>
+    <div class="wx-popover-backdrop" id="wxPopoverBackdrop"></div>
+  </div>
 
   <script src="/biasWords.js"></script>
   <script src="/favorites-store.js"></script>

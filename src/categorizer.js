@@ -20,11 +20,13 @@ const CATEGORIES = [
 
 // 具體類別給 bonus，避免被泛類別淹沒
 const SPECIFIC = new Set([
-  'weather','military','crossstrait','usa','policy','society','food','local','sports'
+  'video','weather','military','crossstrait','usa','policy','society','food','local','sports'
 ]);
 
 // 同分時誰勝出（越前面越優先）— 越具體越早
+// video/weather 只由 URL_RULES 判定，無 KW
 const PRIORITY = [
+  'video',
   'weather',
   'military',
   'crossstrait',
@@ -41,6 +43,7 @@ const PRIORITY = [
 ];
 
 const URL_RULES = [
+  [/youtube\.com|youtu\.be/i,                           'video'],
   [/\/(weather|typhoon|earthquake|forecast)\b/i,        'weather'],
   [/\/(sports?|baseball|basketball|baseballnews)\b/i,   'sports'],
   [/\/(military|defen[cs]e|army|navy|airforce)\b/i,     'military'],

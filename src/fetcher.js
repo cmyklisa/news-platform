@@ -139,10 +139,12 @@ async function fetchOne(source) {
       const publishedAt = pickPublishedMs(item);
       const dateKey = dateKeyFromMs(publishedAt);
       const clusterId = assignCluster(title, dateKey, publishedAt);
-      const category = categorize({
+      let category = categorize({
         title, url,
         rssCategories: item.categories || [],
       });
+      // 來源名稱可直接決定類別（避免 Google News redirect URL 被誤判）
+      if (source.name.startsWith('gn_yt_')) category = 'video';
       const summary = extractSummary(item);
       const info = stmts.insertHeadline.run(
         url, title, source.name, publishedAt, now, clusterId, dateKey, category, summary

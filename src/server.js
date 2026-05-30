@@ -6,6 +6,113 @@ const { fetchAll, backfillCategories } = require('./fetcher');
 const { CATEGORIES, REGIONS, REGION_LABELS, NATIONWIDE_HINTS } = require('./categorizer');
 const keywords = require('./keywords');
 
+// === Live weather (Open-Meteo) ===
+const TW_CITIES = [
+  { code:'KEE', name:'基隆', lat:25.128, lon:121.739, x:172, y: 64 },
+  { code:'TPE', name:'台北', lat:25.033, lon:121.565, x:148, y: 82 },
+  { code:'NTP', name:'新北', lat:25.012, lon:121.466, x:138, y: 92 },
+  { code:'YIL', name:'宜蘭', lat:24.702, lon:121.738, x:178, y:108 },
+  { code:'TYC', name:'桃園', lat:24.994, lon:121.301, x:118, y:100 },
+  { code:'HSC', name:'新竹市', lat:24.814, lon:120.968, x: 96, y:122 },
+  { code:'HSH', name:'新竹縣', lat:24.838, lon:121.018, x:106, y:128 },
+  { code:'MIA', name:'苗栗', lat:24.560, lon:120.821, x: 88, y:148 },
+  { code:'TXG', name:'台中', lat:24.148, lon:120.674, x: 92, y:172 },
+  { code:'CHA', name:'彰化', lat:24.052, lon:120.516, x: 78, y:190 },
+  { code:'NAN', name:'南投', lat:23.960, lon:120.972, x:114, y:194 },
+  { code:'YUN', name:'雲林', lat:23.709, lon:120.431, x: 76, y:214 },
+  { code:'CYI', name:'嘉義市', lat:23.480, lon:120.449, x: 84, y:232 },
+  { code:'CYH', name:'嘉義縣', lat:23.452, lon:120.255, x: 72, y:242 },
+  { code:'TNN', name:'台南', lat:22.999, lon:120.227, x: 80, y:268 },
+  { code:'KHH', name:'高雄', lat:22.627, lon:120.301, x: 92, y:298 },
+  { code:'PTH', name:'屏東', lat:22.672, lon:120.488, x:112, y:312 },
+  { code:'HUA', name:'花蓮', lat:23.987, lon:121.601, x:158, y:196 },
+  { code:'TTT', name:'台東', lat:22.797, lon:121.171, x:138, y:290 },
+  { code:'PEH', name:'澎湖', lat:23.571, lon:119.579, x: 30, y:236 },
+  { code:'KIN', name:'金門', lat:24.449, lon:118.377, x: 14, y:206 },
+  { code:'LNN', name:'連江', lat:26.151, lon:119.929, x: 18, y: 58 },
+];
+
+const WMO_MAP = {
+  0:  { type:'sunny',    label:'晴',     icon:'☀️', color:'#f7c52b' },
+  1:  { type:'mostly',   label:'多雲時晴', icon:'🌤️', color:'#e9c668' },
+  2:  { type:'partly',   label:'多雲',     icon:'⛅', color:'#cfb87c' },
+  3:  { type:'overcast', label:'陰',     icon:'☁️', color:'#98a0aa' },
+  45: { type:'fog',      label:'起霧',     icon:'🌫️', color:'#aab0b8' },
+  48: { type:'fog',      label:'凍霧',     icon:'🌫️', color:'#aab0b8' },
+  51: { type:'drizzle',  label:'毛毛雨',   icon:'🌦️', color:'#5fa9d4' },
+  53: { type:'drizzle',  label:'毛毛雨',   icon:'🌦️', color:'#5fa9d4' },
+  55: { type:'drizzle',  label:'濃毛雨',   icon:'🌧️', color:'#3a8fc7' },
+  56: { type:'drizzle',  label:'凍雨',     icon:'🌧️', color:'#3a8fc7' },
+  57: { type:'drizzle',  label:'濃凍雨',   icon:'🌧️', color:'#3a8fc7' },
+  61: { type:'rain',     label:'小雨',     icon:'🌧️', color:'#3a8fc7' },
+  63: { type:'rain',     label:'雨',       icon:'🌧️', color:'#2a78b8' },
+  65: { type:'rain',     label:'大雨',     icon:'🌧️', color:'#1e5fa1' },
+  66: { type:'rain',     label:'凍雨',     icon:'🌧️', color:'#1e5fa1' },
+  67: { type:'rain',     label:'大凍雨',   icon:'🌧️', color:'#1e5fa1' },
+  71: { type:'snow',     label:'小雪',     icon:'🌨️', color:'#8fc3e0' },
+  73: { type:'snow',     label:'雪',       icon:'🌨️', color:'#8fc3e0' },
+  75: { type:'snow',     label:'大雪',     icon:'❄️', color:'#a8d2e8' },
+  77: { type:'snow',     label:'冰珠',     icon:'❄️', color:'#a8d2e8' },
+  80: { type:'showers',  label:'陣雨',     icon:'🌦️', color:'#3a8fc7' },
+  81: { type:'showers',  label:'陣雨',     icon:'🌧️', color:'#2a78b8' },
+  82: { type:'showers',  label:'大陣雨',   icon:'⛈️', color:'#1e5fa1' },
+  85: { type:'snow_sh',  label:'陣雪',     icon:'🌨️', color:'#8fc3e0' },
+  86: { type:'snow_sh',  label:'大陣雪',   icon:'❄️', color:'#a8d2e8' },
+  95: { type:'storm',    label:'雷雨',     icon:'⛈️', color:'#7e3fa6' },
+  96: { type:'storm',    label:'雷雨夾雹', icon:'⛈️', color:'#5a3aa8' },
+  99: { type:'storm',    label:'強雷雨',   icon:'⛈️', color:'#5a3aa8' },
+};
+const WMO_DEFAULT = { type:'unknown', label:'—', icon:'❔', color:'#666' };
+
+let weatherCache = null;   // { at, data }
+const WEATHER_TTL = 25 * 60 * 1000;
+
+async function fetchLiveWeather() {
+  if (weatherCache && (Date.now() - weatherCache.at) < WEATHER_TTL) {
+    return weatherCache.data;
+  }
+  const lats = TW_CITIES.map(c => c.lat).join(',');
+  const lons = TW_CITIES.map(c => c.lon).join(',');
+  const url = `https://api.open-meteo.com/v1/forecast`
+    + `?latitude=${lats}&longitude=${lons}`
+    + `&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m`
+    + `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum`
+    + `&forecast_days=3&timezone=Asia%2FTaipei`;
+  const res = await fetch(url, { headers: { 'User-Agent': 'TWNewsRadar/0.1' } });
+  if (!res.ok) throw new Error('open-meteo ' + res.status);
+  const json = await res.json();
+  const arr = Array.isArray(json) ? json : [json];
+  const cities = TW_CITIES.map((c, i) => {
+    const d = arr[i] || {};
+    const cur = d.current || {};
+    const code = cur.weather_code != null ? cur.weather_code : null;
+    const w = (code != null && WMO_MAP[code]) || WMO_DEFAULT;
+    const daily = d.daily || {};
+    return {
+      code: c.code, name: c.name, lat: c.lat, lon: c.lon, x: c.x, y: c.y,
+      temp: cur.temperature_2m != null ? Math.round(cur.temperature_2m) : null,
+      humidity: cur.relative_humidity_2m != null ? Math.round(cur.relative_humidity_2m) : null,
+      wind: cur.wind_speed_10m != null ? Math.round(cur.wind_speed_10m) : null,
+      weather_code: code,
+      label: w.label, icon: w.icon, color: w.color, type: w.type,
+      forecast: (daily.time || []).map((t, j) => {
+        const dc = daily.weather_code ? daily.weather_code[j] : null;
+        const dw = (dc != null && WMO_MAP[dc]) || WMO_DEFAULT;
+        return {
+          date: t,
+          weather_code: dc,
+          icon: dw.icon, label: dw.label, color: dw.color,
+          tmax: daily.temperature_2m_max ? Math.round(daily.temperature_2m_max[j]) : null,
+          tmin: daily.temperature_2m_min ? Math.round(daily.temperature_2m_min[j]) : null,
+          precip: daily.precipitation_sum ? daily.precipitation_sum[j] : null,
+        };
+      }),
+    };
+  });
+  weatherCache = { at: Date.now(), data: { cities, fetched_at: Date.now() } };
+  return weatherCache.data;
+}
+
 function fetchTitlesForDate(dateKey) {
   // 同一 cluster 只算一次，避免單一事件多則改寫淹沒關鍵字統計
   const rows = db.prepare(
@@ -78,6 +185,16 @@ app.get('/api/keywords', (req, res) => {
   res.json({ date, items });
 });
 
+// 即時天氣（Open-Meteo 22 縣市快取）
+app.get('/api/weather/live', async (req, res) => {
+  try {
+    const data = await fetchLiveWeather();
+    res.json(data);
+  } catch (err) {
+    res.status(502).json({ error: String(err && err.message || err) });
+  }
+});
+
 // 天氣頁：取出 weather 類別標題；可按區域過濾
 app.get('/api/weather', (req, res) => {
   const region = (req.query.region || 'all').trim();
@@ -119,6 +236,19 @@ app.get('/api/weather', (req, res) => {
       code: r, label: REGION_LABELS[r] || r,
     })),
   });
+});
+
+// 影音新聞：YouTube RSS 來源累積；支援搜尋
+app.get('/api/videos', (req, res) => {
+  const q = (req.query.q || '').trim();
+  const limit = Math.min(parseInt(req.query.limit, 10) || 80, 300);
+  let sql = `SELECT id, url, title, source, published_at, summary FROM headlines WHERE category = 'video'`;
+  const params = [];
+  if (q) { sql += ` AND title LIKE ?`; params.push(`%${q}%`); }
+  sql += ` ORDER BY published_at DESC LIMIT ?`;
+  params.push(limit);
+  const items = db.prepare(sql).all(...params);
+  res.json({ q, items });
 });
 
 // 任意關鍵字搜尋（最愛頁搜尋框用）
@@ -189,12 +319,32 @@ app.get('/api/categories', (req, res) => {
   const countMap = new Map(
     stmts.categoryCountsToday.all(today).map(r => [r.category, r.total])
   );
-  const result = CATEGORIES.map(c => ({
-    code: c.code,
-    name: c.name,
-    total_today: countMap.get(c.code) || 0,
-    items: stmts.headlinesByCategory.all(c.code, perCat),
-  }));
+
+  // 熱門：今日 cluster_size >= 2 的事件，依被報導媒體數排序，取每個 cluster 的最新代表
+  const hotItems = db.prepare(`
+    SELECT h.id, h.url, h.title, h.source, h.published_at, h.cluster_id, h.category,
+           cs.size AS cluster_size
+    FROM headlines h
+    JOIN (
+      SELECT cluster_id, COUNT(*) AS size, MAX(published_at) AS latest
+      FROM headlines
+      WHERE date_key = ? AND cluster_id IS NOT NULL AND category NOT IN ('video','weather')
+      GROUP BY cluster_id
+      HAVING size >= 2
+    ) cs ON cs.cluster_id = h.cluster_id AND h.published_at = cs.latest
+    ORDER BY cs.size DESC, h.published_at DESC
+    LIMIT ?
+  `).all(today, perCat);
+
+  const result = [
+    { code: 'hot', name: '熱門', total_today: hotItems.length, items: hotItems },
+    ...CATEGORIES.map(c => ({
+      code: c.code,
+      name: c.name,
+      total_today: countMap.get(c.code) || 0,
+      items: stmts.headlinesByCategory.all(c.code, perCat),
+    })),
+  ];
   res.json({ categories: result, today });
 });
 

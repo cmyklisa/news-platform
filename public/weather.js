@@ -1,142 +1,202 @@
-const tabsEl = document.getElementById('regionTabs');
-const listEl = document.getElementById('weatherList');
+const mapEl = document.getElementById('twMap');
+const citiesG = document.getElementById('mapCities');
+const summaryEl = document.getElementById('wxSummary');
+const alertsEl = document.getElementById('wxAlerts');
 const statusEl = document.getElementById('status');
-
-const REGION_KEY = 'tw-news-weather-region';
-let currentRegion = localStorage.getItem(REGION_KEY) || 'all';
+const popoverEl = document.getElementById('wxPopover');
+const popoverCardEl = document.getElementById('wxPopoverCard');
+const popoverBackdrop = document.getElementById('wxPopoverBackdrop');
 
 function escapeHTML(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
-
 function formatTime(ms) {
   const d = new Date(ms);
   const p = n => String(n).padStart(2, '0');
   return `${d.getMonth()+1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
+function weekdayCh(d) { return ['日','一','二','三','四','五','六'][d.getDay()]; }
 
-// 由標題判斷天氣類型，回傳 {icon, type, severity, accent}
-function detectType(text) {
-  const t = text || '';
-  if (/海嘯|海溢|嘯/i.test(t))                    return { icon: '🌊', type: '海嘯',      severity: 3, accent: '#0070c0' };
-  if (/強震|大地震|7級|6級|規模7|規模6/i.test(t))  return { icon: '⚠️', type: '強震',      severity: 3, accent: '#ff3030' };
-  if (/地震|餘震|震度|規模/i.test(t))              return { icon: '🟠', type: '地震',      severity: 2, accent: '#e85d2f' };
-  if (/強颱|颱風假|陸上颱風警報|海上颱風警報/i.test(t)) return { icon: '🌀', type: '颱風警報', severity: 3, accent: '#a13fd6' };
-  if (/颱風|中颱|輕颱|熱帶低壓|熱帶性低氣壓/i.test(t)) return { icon: '🌀', type: '颱風',      severity: 2, accent: '#7e3fa6' };
-  if (/超大豪雨|大豪雨/i.test(t))                   return { icon: '⛈️', type: '大豪雨',    severity: 3, accent: '#1e5fa1' };
-  if (/豪雨|大雨特報|雨彈|雷雨/i.test(t))           return { icon: '🌧️', type: '豪雨',      severity: 2, accent: '#2a78b8' };
-  if (/降雨|陣雨|短暫雨|午後雷陣雨/i.test(t))        return { icon: '☔', type: '降雨',      severity: 1, accent: '#3a8fc7' };
-  if (/高溫|熱浪|酷暑|體感/i.test(t))               return { icon: '🌡️', type: '高溫',      severity: 1, accent: '#e69b2f' };
-  if (/寒流|寒潮|寒害|低溫/i.test(t))               return { icon: '❄️', type: '寒流',      severity: 2, accent: '#3aa8d4' };
-  if (/沙塵|霾|空汙|空污|PM2\.5/i.test(t))         return { icon: '🟫', type: '空汙',      severity: 1, accent: '#8a6a3a' };
-  if (/閃電|打雷|雷擊/i.test(t))                    return { icon: '⚡', type: '雷電',      severity: 2, accent: '#c2a022' };
-  if (/晴|多雲|陰天/i.test(t))                      return { icon: '⛅', type: '一般預報',  severity: 0, accent: '#5fa9d4' };
-  return                                            { icon: '🌤️', type: '天氣',      severity: 0, accent: '#5fa9d4' };
+// === 由天氣 type 決定地圖點點顏色／emoji ===
+function legendOf(type) {
+  if (type === 'sunny')              return 'lg-sunny';
+  if (['mostly','partly'].includes(type)) return 'lg-cloudy';
+  if (type === 'overcast' || type === 'fog') return 'lg-overcast';
+  if (['drizzle','rain','showers'].includes(type)) return 'lg-rain';
+  if (['storm','snow_sh'].includes(type)) return 'lg-storm';
+  return '';
 }
 
-function renderTabs(available) {
-  tabsEl.innerHTML = available.map(r => `
-    <button data-region="${r.code}" class="region-tab ${r.code === currentRegion ? 'active' : ''}">
-      ${escapeHTML(r.label)}
-    </button>
-  `).join('');
-  tabsEl.querySelectorAll('.region-tab').forEach(btn => {
-    btn.addEventListener('click', () => {
-      currentRegion = btn.dataset.region;
-      localStorage.setItem(REGION_KEY, currentRegion);
-      tabsEl.querySelectorAll('.region-tab').forEach(b =>
-        b.classList.toggle('active', b.dataset.region === currentRegion));
-      load();
-    });
-  });
-}
-
-function buildAlertBanner(items) {
-  // 找出嚴重度 >= 3 的事件，依類別分組
-  const severe = items
-    .map(it => ({ it, info: detectType(it.title + ' ' + (it.summary || '')) }))
-    .filter(x => x.info.severity >= 2);
-  if (severe.length === 0) return '';
-
-  // 按類別組
-  const byType = {};
-  for (const { it, info } of severe) {
-    if (!byType[info.type]) byType[info.type] = { info, items: [] };
-    byType[info.type].items.push(it);
+// === 渲染台灣地圖點點 ===
+let CITIES = [];
+function renderMap(cities) {
+  CITIES = cities;
+  citiesG.innerHTML = '';
+  for (const c of cities) {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'map-city');
+    g.dataset.code = c.code;
+    g.setAttribute('transform', `translate(${c.x} ${c.y})`);
+    g.innerHTML = `
+      <circle r="14" fill="${c.color}" stroke="#0c0d10" stroke-width="1.6"
+              filter="drop-shadow(0 1px 2px rgba(0,0,0,0.6))" />
+      <text y="3" text-anchor="middle" font-size="9" fill="#0c0d10"
+            font-weight="800" font-family="serif" letter-spacing="1">${c.temp != null ? c.temp + '°' : '-'}</text>
+      <text y="28" text-anchor="middle" font-size="10" fill="#e7e8ea"
+            font-weight="700" font-family="serif" stroke="#0c0d10" stroke-width="3" paint-order="stroke">${c.name}</text>
+    `;
+    g.addEventListener('click', () => openCityDetail(c));
+    citiesG.appendChild(g);
   }
-  const cards = Object.values(byType)
-    .sort((a, b) => b.info.severity - a.info.severity)
-    .slice(0, 4)
-    .map(g => `
-      <div class="alert-card" style="--accent:${g.info.accent}" data-id="${g.items[0].id}" data-url="${escapeHTML(g.items[0].url)}">
-        <div class="alert-icon">${g.info.icon}</div>
-        <div class="alert-body">
-          <div class="alert-type">${escapeHTML(g.info.type)}</div>
-          <div class="alert-title">${window.highlightBiasText(g.items[0].title)}</div>
-          <div class="alert-meta">${g.items.length} 則相關 · 點看詳情</div>
+}
+
+// === 中央大型概況 ===
+function renderSummary(cities) {
+  if (!cities.length) return;
+  const main = cities.find(c => c.code === 'TPE') || cities[0];
+  // 平均氣溫
+  const temps = cities.map(c => c.temp).filter(t => typeof t === 'number');
+  const avg = temps.length ? Math.round(temps.reduce((s,t)=>s+t,0) / temps.length) : null;
+  // 是否多數下雨
+  const rainCount = cities.filter(c => ['rain','drizzle','showers','storm'].includes(c.type)).length;
+  const stormCount = cities.filter(c => c.type === 'storm').length;
+  const isRainy = rainCount >= Math.ceil(cities.length / 3);
+  const dominant = (
+    stormCount > 0 ? cities.find(c => c.type === 'storm')
+    : isRainy ? cities.find(c => ['rain','showers','drizzle'].includes(c.type))
+    : main
+  );
+
+  summaryEl.innerHTML = `
+    <div class="wx-big">
+      <div class="wx-big-icon">${dominant.icon || '⛅'}</div>
+      <div class="wx-big-body">
+        <div class="wx-big-temp">${main.temp ?? '-'}<span>°C</span></div>
+        <div class="wx-big-label">${main.name}　${main.label}</div>
+        <div class="wx-big-sub">
+          全台均溫 <strong>${avg ?? '-'}°C</strong>
+          ${rainCount > 0 ? `· 有 ${rainCount} 縣市下雨` : ''}
+          ${stormCount > 0 ? `· ${stormCount} 處雷雨` : ''}
         </div>
       </div>
-    `).join('');
-  return `<div class="alert-banner">${cards}</div>`;
+    </div>
+    <div class="wx-detail-grid">
+      <div class="wx-stat"><span class="wx-stat-l">濕度</span><span class="wx-stat-v">${main.humidity ?? '-'}%</span></div>
+      <div class="wx-stat"><span class="wx-stat-l">風速</span><span class="wx-stat-v">${main.wind ?? '-'} km/h</span></div>
+      <div class="wx-stat"><span class="wx-stat-l">資料來源</span><span class="wx-stat-v">Open-Meteo</span></div>
+    </div>
+  `;
 }
 
-function renderList(data) {
-  const items = data.items || [];
-  if (items.length === 0) {
-    listEl.innerHTML = `<div class="empty">${escapeHTML(data.region_label || '')}今日尚無天氣相關新聞</div>`;
+// === 點縣市彈出詳情 ===
+function openCityDetail(c) {
+  popoverCardEl.innerHTML = `
+    <button class="wx-popover-x" type="button" aria-label="關閉">✕</button>
+    <div class="wx-pop-head" style="--accent:${c.color}">
+      <div class="wx-pop-icon">${c.icon}</div>
+      <div>
+        <div class="wx-pop-name">${escapeHTML(c.name)}</div>
+        <div class="wx-pop-temp">${c.temp ?? '-'}°C　<small>${escapeHTML(c.label)}</small></div>
+      </div>
+    </div>
+    <div class="wx-pop-stats">
+      <div><span>濕度</span><strong>${c.humidity ?? '-'}%</strong></div>
+      <div><span>風速</span><strong>${c.wind ?? '-'} km/h</strong></div>
+    </div>
+    <div class="wx-pop-forecast">
+      ${(c.forecast || []).map((f, i) => {
+        const d = new Date(f.date);
+        const label = i === 0 ? '今日' : i === 1 ? '明日' : `${d.getMonth()+1}/${d.getDate()}`;
+        return `
+          <div class="wx-day">
+            <div class="wx-day-label">${label} 週${weekdayCh(d)}</div>
+            <div class="wx-day-icon">${f.icon}</div>
+            <div class="wx-day-cond">${escapeHTML(f.label)}</div>
+            <div class="wx-day-temp">${f.tmin ?? '-'}° / <strong>${f.tmax ?? '-'}°</strong></div>
+            ${f.precip != null ? `<div class="wx-day-precip">☂ ${f.precip.toFixed(1)}mm</div>` : ''}
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+  popoverCardEl.querySelector('.wx-popover-x').addEventListener('click', closePopover);
+  popoverEl.hidden = false;
+}
+function closePopover() { popoverEl.hidden = true; }
+popoverBackdrop.addEventListener('click', closePopover);
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !popoverEl.hidden) closePopover();
+});
+
+// === 警報卡片（仍用既有 weather 類別新聞） ===
+function detectAlertType(text) {
+  const t = text || '';
+  if (/海嘯/.test(t))                                return { icon:'🌊', label:'海嘯',     accent:'#0070c0', sev:3 };
+  if (/強震|大地震|7級|6級|規模 ?[67]/i.test(t))      return { icon:'⚠️', label:'強震',     accent:'#ff3030', sev:3 };
+  if (/地震|餘震|震度|規模/.test(t))                  return { icon:'🟠', label:'地震',     accent:'#e85d2f', sev:2 };
+  if (/強颱|颱風假|陸上颱風警報|海上颱風警報/.test(t)) return { icon:'🌀', label:'颱風警報', accent:'#a13fd6', sev:3 };
+  if (/颱風|中颱|輕颱|熱帶低壓|熱帶性低氣壓/.test(t)) return { icon:'🌀', label:'颱風',     accent:'#7e3fa6', sev:2 };
+  if (/超大豪雨|大豪雨/.test(t))                      return { icon:'⛈️', label:'大豪雨',   accent:'#1e5fa1', sev:3 };
+  if (/豪雨|大雨特報|雨彈|雷雨/.test(t))              return { icon:'🌧️', label:'豪雨',     accent:'#2a78b8', sev:2 };
+  if (/寒流|寒潮|寒害|低溫/.test(t))                  return { icon:'❄️', label:'寒流',     accent:'#3aa8d4', sev:2 };
+  if (/閃電|打雷|雷擊/.test(t))                       return { icon:'⚡', label:'雷電',     accent:'#c2a022', sev:2 };
+  return null;
+}
+
+function renderAlerts(items) {
+  // 只顯示嚴重事件
+  const flagged = items
+    .map(it => ({ it, info: detectAlertType(it.title + ' ' + (it.summary || '')) }))
+    .filter(x => x.info && x.info.sev >= 2);
+
+  if (flagged.length === 0) {
+    alertsEl.innerHTML = `<div class="empty">目前無重大氣象警示</div>`;
     return;
   }
-
-  const banner = buildAlertBanner(items);
-  const fallbackNote = data.fallback
-    ? `<div class="region-fallback">「${escapeHTML(data.region_label)}」今日無特定區域氣象新聞，以下顯示全台天氣動態</div>`
-    : '';
-
-  const cards = items.map(it => {
-    const info = detectType(it.title + ' ' + (it.summary || ''));
-    const sourceName = (window.SOURCE_NAMES && window.SOURCE_NAMES[it.source]) || it.source;
-    return `
-      <article class="weather-card sev-${info.severity}"
-               style="--accent:${info.accent}"
-               data-id="${it.id}" data-url="${escapeHTML(it.url)}">
-        <div class="wc-icon">${info.icon}</div>
-        <div class="wc-body">
-          <div class="wc-type">${escapeHTML(info.type)}</div>
-          <h2 class="weather-title">${window.highlightBiasText(it.title)}</h2>
-          ${it.summary ? `<p class="weather-summary">${window.highlightBiasText(it.summary.slice(0, 160))}${it.summary.length > 160 ? '…' : ''}</p>` : ''}
-          <div class="weather-meta">
-            <span class="weather-source">${escapeHTML(sourceName)}</span>
-            <span>·</span>
-            <span>${formatTime(it.published_at)}</span>
-          </div>
-        </div>
-      </article>
-    `;
-  }).join('');
-
-  listEl.innerHTML = fallbackNote + banner + cards;
-
-  listEl.querySelectorAll('.weather-card, .alert-card').forEach(card => {
+  alertsEl.innerHTML = flagged.slice(0, 12).map(({ it, info }) => `
+    <article class="wx-alert" style="--accent:${info.accent}"
+             data-id="${it.id}" data-url="${escapeHTML(it.url)}">
+      <div class="wx-alert-icon">${info.icon}</div>
+      <div class="wx-alert-body">
+        <div class="wx-alert-type">${escapeHTML(info.label)}</div>
+        <div class="wx-alert-title">${window.highlightBiasText(it.title)}</div>
+        <div class="wx-alert-time">${formatTime(it.published_at)}</div>
+      </div>
+    </article>
+  `).join('');
+  alertsEl.querySelectorAll('.wx-alert').forEach(card => {
     card.addEventListener('click', () => {
       window.openDrawer(parseInt(card.dataset.id, 10), card.dataset.url);
     });
   });
 }
 
-function load() {
-  statusEl.textContent = '載入中…';
-  fetch(`/api/weather?region=${encodeURIComponent(currentRegion)}&limit=80`)
-    .then(r => r.json())
-    .then(data => {
-      renderTabs(data.available_regions || [{ code: 'all', label: '全台' }]);
-      renderList(data);
-      statusEl.textContent = `${data.region_label || ''} · ${(data.items || []).length} 則 · ${data.date}`;
-    })
-    .catch(err => {
-      statusEl.textContent = '載入失敗';
-      listEl.innerHTML = `<div class="empty">無法載入天氣資料：${escapeHTML(err.message || '')}</div>`;
-    });
+// === 載入 ===
+async function loadLive() {
+  statusEl.textContent = '更新中…';
+  try {
+    const r = await fetch('/api/weather/live');
+    const data = await r.json();
+    if (!data || !data.cities) throw new Error(data.error || '無資料');
+    renderMap(data.cities);
+    renderSummary(data.cities);
+    statusEl.textContent = `更新於 ${formatTime(data.fetched_at)}`;
+  } catch (err) {
+    summaryEl.innerHTML = `<div class="empty">無法取得即時氣象（${escapeHTML(err.message || '')}）<br><small>稍後自動重試</small></div>`;
+    statusEl.textContent = '載入失敗';
+  }
+}
+async function loadAlerts() {
+  try {
+    const r = await fetch('/api/weather?region=all&limit=120');
+    const data = await r.json();
+    renderAlerts(data.items || []);
+  } catch (err) {
+    alertsEl.innerHTML = `<div class="empty">警報資料載入失敗</div>`;
+  }
 }
 
-load();
-setInterval(load, 5 * 60 * 1000);
+loadLive();
+loadAlerts();
+setInterval(loadLive, 15 * 60 * 1000);   // 15 分鐘更新一次即時天氣
+setInterval(loadAlerts, 5 * 60 * 1000);  // 5 分鐘更新警報

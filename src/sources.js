@@ -14,4 +14,9 @@ module.exports = [
   // 天氣/災害（颱風、地震、豪雨、氣象預報）
   { name: 'google_wx',    url: 'https://news.google.com/rss/search?q=%E9%A2%B1%E9%A2%A8+OR+%E6%B0%A3%E8%B1%A1%E7%BD%B2+OR+%E5%A4%A9%E6%B0%A3%E9%A0%90%E5%A0%B1+OR+%E8%B1%AA%E9%9B%A8+OR+%E5%A4%A7%E9%9B%A8%E7%89%B9%E5%A0%B1&hl=zh-TW&gl=TW&ceid=TW:zh-Hant' },
   { name: 'google_quake', url: 'https://news.google.com/rss/search?q=%E5%9C%B0%E9%9C%87+OR+%E9%A4%98%E9%9C%87+OR+%E9%9C%87%E5%BA%A6+OR+%E6%B5%B7%E5%98%AF&hl=zh-TW&gl=TW&ceid=TW:zh-Hant' },
+
+  // 影音新聞：以 Google News 過濾 site:youtube.com，命中各大新聞台官方上傳
+  { name: 'gn_yt_news',    url: 'https://news.google.com/rss/search?q=site%3Ayoutube.com+%E6%96%B0%E8%81%9E&hl=zh-TW&gl=TW&ceid=TW:zh-Hant' },
+  { name: 'gn_yt_taiwan',  url: 'https://news.google.com/rss/search?q=site%3Ayoutube.com+%E5%8F%B0%E7%81%A3&hl=zh-TW&gl=TW&ceid=TW:zh-Hant' },
+  { name: 'gn_yt_politic', url: 'https://news.google.com/rss/search?q=site%3Ayoutube.com+%E7%B8%BD%E7%B5%B1+OR+%E7%AB%8B%E5%A7%94+OR+%E6%94%BF%E5%BA%9C&hl=zh-TW&gl=TW&ceid=TW:zh-Hant' },
 ];

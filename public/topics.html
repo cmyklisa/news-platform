@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>熱門關鍵字 · 台灣新聞</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="topics">
+  <header class="topbar">
+    <a class="back-link" href="/">
+      <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M15.5 4l-8 8 8 8 1.5-1.5L10.5 12l6.5-6.5z"/></svg>
+      <span>回首頁</span>
+    </a>
+    <h1 class="topbar-title">🔥 熱門關鍵字檢索</h1>
+    <span id="status" class="status"></span>
+  </header>
+
+  <main class="tp-layout">
+    <aside class="tp-words">
+      <header class="tp-words-head">
+        <h2>今日 TOP 30</h2>
+        <span class="tp-words-hint">點關鍵字看相關報導</span>
+      </header>
+      <ol class="tp-list" id="tpList"></ol>
+    </aside>
+
+    <section class="tp-results" id="tpResults">
+      <div class="tp-prompt">
+        <div class="tp-prompt-icon">🔍</div>
+        <h2>選一個關鍵字</h2>
+        <p>左側列出今日新聞中出現最多次的關鍵字。點擊任一詞，這裡會顯示所有相關標題，<br>並把同一事件的多家報導歸在一起。</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="/biasWords.js"></script>
+  <script src="/favorites-store.js"></script>
+  <script src="/drawer.js"></script>
+  <script src="/topics.js"></script>
+</body>
+</html>

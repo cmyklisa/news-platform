@@ -40,10 +40,10 @@ const savedTitle = localStorage.getItem(TITLE_KEY);
 if (savedTitle) paperTitleH1.textContent = savedTitle;
 paperTitleH1.addEventListener('input', () => {
   const t = paperTitleH1.textContent.trim();
-  localStorage.setItem(TITLE_KEY, t || '我的每日情報');
+  localStorage.setItem(TITLE_KEY, t || '新聞筆記');
 });
 paperTitleH1.addEventListener('blur', () => {
-  if (!paperTitleH1.textContent.trim()) paperTitleH1.textContent = '我的每日情報';
+  if (!paperTitleH1.textContent.trim()) paperTitleH1.textContent = '新聞筆記';
 });
 paperTitleH1.addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); paperTitleH1.blur(); }
@@ -113,7 +113,7 @@ function clipsHtml(favs, fullMap) {
 
 async function renderClippings() {
   const favs = window.Favorites.list();
-  paperCountEl.textContent = `${favs.length} 則剪報`;
+  paperCountEl.textContent = `${favs.length} 則`;
   paperDateEl.textContent = formatPaperDate();
 
   if (favs.length === 0) {

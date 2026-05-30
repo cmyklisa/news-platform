@@ -3,7 +3,7 @@ const pagesEl = document.getElementById('pages');
 const sideNavEl = document.getElementById('sideNav');
 const statusEl = document.getElementById('status');
 const favCountEl = document.getElementById('favCount');
-const refreshBtn = document.getElementById('refreshBtn');
+const refreshBtn = null; // 已移除按鈕，autorefresh 每 5 分鐘照跑
 
 const BIAS_WORDS = (window.BIAS_WORDS || []).slice().sort((a, b) => b.length - a.length);
 const HEART_PATH = 'M12 21s-7-4.6-7-10.3A4.7 4.7 0 0 1 9.7 6c1.6 0 3 .8 3.8 2 .8-1.2 2.2-2 3.8-2A4.7 4.7 0 0 1 22 10.7C22 16.4 12 21 12 21z';
@@ -13,6 +13,14 @@ const SIZE_POOL = [
   ...Array(9).fill('size-m'),
   ...Array(7).fill('size-s'),
 ];
+
+// 標題隨機配色（柔和明亮、對比深底）
+const TITLE_COLORS = [
+  '#f7d970', '#ffd089', '#ffb084', '#ff9eab', '#ff8aa0',
+  '#c89efc', '#9ec1ff', '#7ed7e6', '#8be3c2', '#b8e88a',
+  '#e8d670', '#d4b27a', '#f0a060', '#ff8c8c', '#ed7eb4',
+];
+const pickTitleColor = () => TITLE_COLORS[Math.floor(Math.random() * TITLE_COLORS.length)];
 
 const isMobile = () => window.innerWidth <= 768;
 const ROWS_DESKTOP = 6;
@@ -52,6 +60,7 @@ function buildBrick(item) {
   a.rel = 'noopener';
   a.dataset.url = item.url;
   a.dataset.id = item.id;
+  a.style.setProperty('--tcolor', pickTitleColor());
   if (item.cluster_size != null) a.dataset.clusterSize = item.cluster_size;
 
   const isFav = window.Favorites.has(item.url);
@@ -225,7 +234,40 @@ function reshuffleSizes(container) {
   container.querySelectorAll('.brick').forEach(b => {
     b.classList.remove('size-l', 'size-m', 'size-s');
     b.classList.add(randomSize());
+    b.style.setProperty('--tcolor', pickTitleColor());
   });
+}
+
+// ===== 捲動時磚塊文字隨距離 rail 中心放大/縮小 =====
+function attachScrollScale(rail) {
+  let ticking = false;
+  const update = () => {
+    ticking = false;
+    const rect = rail.getBoundingClientRect();
+    const mob = isMobile();
+    const center = mob ? rect.top + rect.height / 2 : rect.left + rect.width / 2;
+    const half   = mob ? rect.height / 2 : rect.width / 2;
+    const safe = Math.max(half * 0.85, 100);
+    rail.querySelectorAll('.brick-text').forEach(t => {
+      const br = t.getBoundingClientRect();
+      const bc = mob ? br.top + br.height / 2 : br.left + br.width / 2;
+      const d = Math.abs(bc - center);
+      const ratio = Math.min(1, d / safe);
+      // 中心 1.18 倍，邊緣 0.78 倍
+      const scale = (1.18 - ratio * 0.4).toFixed(2);
+      t.style.setProperty('--brick-scale', scale);
+    });
+  };
+  const onScroll = () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(update);
+  };
+  rail.addEventListener('scroll', onScroll, { passive: true });
+  // 視窗大小變更時也要重算
+  window.addEventListener('resize', onScroll);
+  // 初始一次
+  requestAnimationFrame(update);
 }
 
 // ===== build category panel =====
@@ -276,7 +318,7 @@ function buildPage(cat) {
 
 function buildSideNav(items) {
   sideNavEl.innerHTML = `<ul>${items.map((c, i) => `
-    <li data-i="${i}" data-count="${c.total_today ?? c.total ?? ''}">${escapeHTML(c.name)}</li>
+    <li data-i="${i}" data-code="${c.code || ''}" data-count="${c.total_today ?? c.total ?? ''}">${escapeHTML(c.name)}</li>
   `).join('')}</ul>`;
   sideNavEl.querySelectorAll('li').forEach(li => {
     li.addEventListener('click', () => {
@@ -318,17 +360,21 @@ function setupObserver() {
         if (mobileDotsEl) {
           mobileDotsEl.querySelectorAll('span').forEach((d, j) => d.classList.toggle('active', j === i));
         }
-        if (!isMobile()) {
-          const rail = e.target.querySelector('.brick-rail');
-          if (rail) {
+        const rail = e.target.querySelector('.brick-rail');
+        if (rail) {
+          if (!isMobile()) {
             if (rail.dataset.first) reshuffleSizes(rail);
             else rail.dataset.first = '1';
           }
+          // 確保 active 時尺度有更新
+          rail.dispatchEvent(new Event('scroll'));
         }
       }
     }
   }, { root: pagesEl, threshold: [0, 0.55] });
   pagesEl.querySelectorAll('.page').forEach(p => obs.observe(p));
+  // 為每個 rail 掛上 scroll-scale 監聽
+  pagesEl.querySelectorAll('.brick-rail').forEach(attachScrollScale);
 }
 
 // ===== load =====
@@ -353,11 +399,7 @@ function loadCategories() {
     .catch(err => { statusEl.textContent = '載入失敗'; console.error(err); });
 }
 
-refreshBtn.addEventListener('click', async () => {
-  statusEl.textContent = '抓取中…';
-  try { await fetch('/api/refresh', { method: 'POST' }); } catch {}
-  loadCategories();
-});
+// 重整按鈕已移除；setInterval(loadCategories, ...) 每 5 分鐘自動更新
 
 // 鍵盤：桌機 ↑↓ 切類別、手機 ←→ 翻頁
 window.addEventListener('keydown', e => {
